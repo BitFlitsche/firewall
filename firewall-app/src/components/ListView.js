@@ -54,11 +54,33 @@ const ListView = ({ endpoint, title, refresh }) => {
   const valueField = getValueField(endpoint);
   const valueHeader = getValueHeader(endpoint);
 
+  // Serverseitige Daten für /ips
   useEffect(() => {
     const fetchItems = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const response = await axiosInstance.get(endpoint);
-        setItems(response.data);
+        const response = await axiosInstance.get(endpoint, endpoint === '/ips' ? {
+          params: {
+            page: page + 1,
+            limit: rowsPerPage,
+            status: filterStatus || undefined,
+            search: filterValue || undefined,
+            orderBy,
+            order,
+          }
+        } : undefined);
+        // Universell: items/total oder fallback auf Array
+        if (response.data && Array.isArray(response.data)) {
+          setItems(response.data);
+          setTotal(response.data.length);
+        } else if (response.data && response.data.items) {
+          setItems(response.data.items);
+          setTotal(response.data.total || response.data.items.length);
+        } else {
+          setItems([]);
+          setTotal(0);
+        }
         setLoading(false);
       } catch (err) {
         setError('Failed to fetch items');
@@ -66,36 +88,62 @@ const ListView = ({ endpoint, title, refresh }) => {
       }
     };
     fetchItems();
-  }, [endpoint, refresh]);
+    // eslint-disable-next-line
+  }, [endpoint, refresh, page, rowsPerPage, filterStatus, filterValue, orderBy, order]);
 
-  // Filter
-  const filteredItems = items.filter((item) => {
-    const value = (item[valueField] || '').toLowerCase();
-    const status = (item.Status || '').toLowerCase();
-    const valueMatch = filterValue === '' || value.includes(filterValue.toLowerCase());
-    const statusMatch = filterStatus === '' || status === filterStatus;
-    return valueMatch && statusMatch;
-  });
+  // Immer initialisieren, um Fehler zu vermeiden
+  let filteredItems = items;
+  if (endpoint !== '/ips') {
+    filteredItems = items.filter((item) => {
+      const value = (item[valueField] || '').toLowerCase();
+      const status = (item.Status || '').toLowerCase();
+      const valueMatch = filterValue === '' || value.includes(filterValue.toLowerCase());
+      const statusMatch = filterStatus === '' || status === filterStatus;
+      return valueMatch && statusMatch;
+    });
+  }
 
-  // Sortierung
-  const sortedItems = [...filteredItems].sort((a, b) => {
-    let aValue = a[orderBy];
-    let bValue = b[orderBy];
-    if (orderBy === 'ID') {
-      aValue = aValue || 0;
-      bValue = bValue || 0;
-      return order === 'asc' ? aValue - bValue : bValue - aValue;
-    } else {
-      aValue = (aValue || '').toString().toLowerCase();
-      bValue = (bValue || '').toString().toLowerCase();
-      if (aValue < bValue) return order === 'asc' ? -1 : 1;
-      if (aValue > bValue) return order === 'asc' ? 1 : -1;
-      return 0;
+  let sortedItems = [];
+  if (endpoint === '/ips') {
+    sortedItems = items;
+  } else {
+    sortedItems = [...filteredItems].sort((a, b) => {
+      let aValue = a[orderBy];
+      let bValue = b[orderBy];
+      if (orderBy === 'ID') {
+        aValue = aValue || 0;
+        bValue = bValue || 0;
+        return order === 'asc' ? aValue - bValue : bValue - aValue;
+      } else {
+        aValue = (aValue || '').toString().toLowerCase();
+        bValue = (bValue || '').toString().toLowerCase();
+        if (aValue < bValue) return order === 'asc' ? -1 : 1;
+        if (aValue > bValue) return order === 'asc' ? 1 : -1;
+        return 0;
+      }
+    });
+  }
+
+  // Für /ips keine clientseitige Filterung/Sortierung/Paginierung
+  const paginatedItems = endpoint === '/ips' ? items : sortedItems.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+  // Für /ips kommt total vom Server, sonst clientseitig bestimmen
+  const [total, setTotal] = useState(0);
+  useEffect(() => {
+    if (endpoint !== '/ips') {
+      setTotal(sortedItems.length);
     }
-  });
+    // eslint-disable-next-line
+  }, [sortedItems, endpoint]);
 
-  // Slice für aktuelle Seite
-  const paginatedItems = sortedItems.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  // Status-Counts berechnen
+  const statusCounts = items.reduce((acc, item) => {
+    const status = (item.Status || '').toLowerCase();
+    if (!acc[status]) acc[status] = 0;
+    acc[status]++;
+    return acc;
+  }, {});
+  const totalCount = items.length;
 
   const handleSort = (field) => {
     if (orderBy === field) {
@@ -128,15 +176,32 @@ const ListView = ({ endpoint, title, refresh }) => {
           size="small"
         />
         <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>Status</InputLabel>
+          <InputLabel shrink>Status</InputLabel>
           <Select
             value={filterStatus}
             label="Status"
             onChange={(e) => setFilterStatus(e.target.value)}
+            displayEmpty
+            renderValue={(selected) => {
+              if (!selected) return `All (${totalCount})`;
+              if (selected === 'allowed') return `Allowed (${statusCounts['allowed'] || 0})`;
+              if (selected === 'denied') return `Denied (${statusCounts['denied'] || 0})`;
+              if (selected === 'whitelisted') return `Whitelisted (${statusCounts['whitelisted'] || 0})`;
+              return selected;
+            }}
           >
-            {statusOptions.map((opt) => (
-              <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-            ))}
+            <MenuItem key="" value="">
+              All ({totalCount})
+            </MenuItem>
+            <MenuItem key="allowed" value="allowed">
+              Allowed ({statusCounts['allowed'] || 0})
+            </MenuItem>
+            <MenuItem key="denied" value="denied">
+              Denied ({statusCounts['denied'] || 0})
+            </MenuItem>
+            <MenuItem key="whitelisted" value="whitelisted">
+              Whitelisted ({statusCounts['whitelisted'] || 0})
+            </MenuItem>
           </Select>
         </FormControl>
         <Button variant="outlined" size="small" onClick={() => { setFilterValue(''); setFilterStatus(''); }}>
@@ -146,7 +211,7 @@ const ListView = ({ endpoint, title, refresh }) => {
       <TableContainer component={Paper}>
         <TablePagination
           component="div"
-          count={sortedItems.length}
+          count={total}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
@@ -204,7 +269,7 @@ const ListView = ({ endpoint, title, refresh }) => {
         </Table>
         <TablePagination
           component="div"
-          count={sortedItems.length}
+          count={total}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}

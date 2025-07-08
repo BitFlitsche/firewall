@@ -55,10 +55,10 @@ const DashboardStats = () => {
         axios.get('/countries')
       ]);
 
-      const ips = ipsRes.data;
-      const emails = emailsRes.data;
-      const userAgents = userAgentsRes.data;
-      const countries = countriesRes.data;
+      const ips = ipsRes.data.items || [];
+      const emails = emailsRes.data.items || [];
+      const userAgents = userAgentsRes.data.items || [];
+      const countries = countriesRes.data.items || [];
 
       const ipCounts = countStatuses(ips, 'Status');
       const emailCounts = countStatuses(emails, 'Status');
@@ -66,10 +66,10 @@ const DashboardStats = () => {
       const countryCounts = countStatuses(countries, 'Status');
 
       setStats({
-        ips: { total: ips.length, ...ipCounts },
-        emails: { total: emails.length, ...emailCounts },
-        userAgents: { total: userAgents.length, ...userAgentCounts },
-        countries: { total: countries.length, ...countryCounts }
+        ips: { total: ipsRes.data.total || ips.length, ...ipCounts },
+        emails: { total: emailsRes.data.total || emails.length, ...emailCounts },
+        userAgents: { total: userAgentsRes.data.total || userAgents.length, ...userAgentCounts },
+        countries: { total: countriesRes.data.total || countries.length, ...countryCounts }
       });
     } catch (err) {
       setError('Failed to load statistics');
