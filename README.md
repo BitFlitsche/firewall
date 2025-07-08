@@ -151,10 +151,16 @@ docker-compose down
   - Set up proper authentication
   - Configure secure proxy settings
 
-## License
+## Lizenz
 
-[Add your license information here]
+Dieses Projekt ist Open Source und steht unter der MIT License.  
+Copyright (c) 2024 github.com/BitFlitsche
+
+Drittanbieter-Bibliotheken, wie z.B. der ElasticSearch Go Client, können unter anderen Lizenzen (z.B. Apache 2.0) stehen. Die entsprechenden Lizenztexte sind diesem Projekt beigelegt.
 
 ## Contributing
 
-[Add contribution guidelines here] 
+Beiträge sind willkommen!  
+Wenn du Fehler findest, Ideen hast oder neue Features beitragen möchtest, erstelle gerne ein Issue oder einen Pull Request.
+
+Vielen Dank für deine Unterstützung! 

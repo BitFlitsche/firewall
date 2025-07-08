@@ -1,0 +1,11 @@
+Dieses Projekt verwendet Drittanbieter-Bibliotheken, die unter der Apache License 2.0 stehen.
+
+Die jeweiligen Lizenztexte und Hinweise finden Sie in den jeweiligen Lizenzdateien der Abhängigkeiten (z.B. im Verzeichnis node_modules/ oder vendor/), sowie in den jeweiligen Projektdokumentationen.
+
+Beispielhafte Abhängigkeit:
+- ElasticSearch Go Client (https://github.com/elastic/go-elasticsearch)
+
+Die Apache License 2.0 ist unter folgendem Link einsehbar:
+https://www.apache.org/licenses/LICENSE-2.0
+
+Sollten weitere Hinweise oder Anforderungen bestehen, sind diese in den jeweiligen Lizenzdateien der Abhängigkeiten dokumentiert. 
