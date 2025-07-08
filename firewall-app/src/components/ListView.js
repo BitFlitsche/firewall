@@ -16,6 +16,7 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
 import TablePagination from '@mui/material/TablePagination';
+import { useLocation } from 'react-router-dom';
 
 const statusOptions = [
   { value: '', label: 'All' },
@@ -50,6 +51,16 @@ const ListView = ({ endpoint, title, refresh }) => {
   const [order, setOrder] = useState('desc');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const location = useLocation();
+
+  // Set initial filterStatus from query param
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    if (status && ['allowed','denied','whitelisted'].includes(status)) {
+      setFilterStatus(status);
+    }
+  }, [location.search]);
 
   const valueField = getValueField(endpoint);
   const valueHeader = getValueHeader(endpoint);

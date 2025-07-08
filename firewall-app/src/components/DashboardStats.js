@@ -20,6 +20,7 @@ import {
   Person as PersonIcon,
   Flag as FlagIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 const statusLabels = ['allowed', 'denied', 'whitelisted'];
 
@@ -32,6 +33,7 @@ const DashboardStats = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const countStatuses = (arr, statusField = 'status') => {
     const counts = { allowed: 0, denied: 0, whitelisted: 0 };
@@ -40,6 +42,16 @@ const DashboardStats = () => {
       if (statusLabels.includes(status)) counts[status]++;
     });
     return counts;
+  };
+
+  const handleCountClick = (type, status) => {
+    let path = '/';
+    if (type === 'ips') path = '/ip-list';
+    if (type === 'emails') path = '/email-list';
+    if (type === 'userAgents') path = '/useragent-list';
+    if (type === 'countries') path = '/country-list';
+    const query = status ? `?status=${status}` : '';
+    navigate(`${path}${query}`);
   };
 
   const fetchStats = useCallback(async () => {
@@ -133,14 +145,14 @@ const DashboardStats = () => {
                     IP Addresses
                   </Box>
                 </TableCell>
-                <TableCell>{stats.ips.total}</TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', null)}>{stats.ips.total}</TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'allowed')}>
                   <Chip label={stats.ips.allowed} color={getStatusColor(stats.ips.allowed)} size="small" />
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'denied')}>
                   <Chip label={stats.ips.denied} color={getStatusColor(stats.ips.denied)} size="small" />
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'whitelisted')}>
                   <Chip label={stats.ips.whitelisted} color={getStatusColor(stats.ips.whitelisted)} size="small" />
                 </TableCell>
               </TableRow>
@@ -151,14 +163,14 @@ const DashboardStats = () => {
                     Email Addresses
                   </Box>
                 </TableCell>
-                <TableCell>{stats.emails.total}</TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', null)}>{stats.emails.total}</TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', 'allowed')}>
                   <Chip label={stats.emails.allowed} color={getStatusColor(stats.emails.allowed)} size="small" />
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', 'denied')}>
                   <Chip label={stats.emails.denied} color={getStatusColor(stats.emails.denied)} size="small" />
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', 'whitelisted')}>
                   <Chip label={stats.emails.whitelisted} color={getStatusColor(stats.emails.whitelisted)} size="small" />
                 </TableCell>
               </TableRow>
@@ -169,14 +181,14 @@ const DashboardStats = () => {
                     User Agents
                   </Box>
                 </TableCell>
-                <TableCell>{stats.userAgents.total}</TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', null)}>{stats.userAgents.total}</TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', 'allowed')}>
                   <Chip label={stats.userAgents.allowed} color={getStatusColor(stats.userAgents.allowed)} size="small" />
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', 'denied')}>
                   <Chip label={stats.userAgents.denied} color={getStatusColor(stats.userAgents.denied)} size="small" />
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', 'whitelisted')}>
                   <Chip label={stats.userAgents.whitelisted} color={getStatusColor(stats.userAgents.whitelisted)} size="small" />
                 </TableCell>
               </TableRow>
@@ -187,14 +199,14 @@ const DashboardStats = () => {
                     Countries
                   </Box>
                 </TableCell>
-                <TableCell>{stats.countries.total}</TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', null)}>{stats.countries.total}</TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'allowed')}>
                   <Chip label={stats.countries.allowed} color={getStatusColor(stats.countries.allowed)} size="small" />
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'denied')}>
                   <Chip label={stats.countries.denied} color={getStatusColor(stats.countries.denied)} size="small" />
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'whitelisted')}>
                   <Chip label={stats.countries.whitelisted} color={getStatusColor(stats.countries.whitelisted)} size="small" />
                 </TableCell>
               </TableRow>
