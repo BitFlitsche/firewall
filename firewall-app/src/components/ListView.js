@@ -1,0 +1,185 @@
+import React, { useState, useEffect } from 'react';
+import axiosInstance from '../axiosConfig';
+import Box from '@mui/material/Box';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
+import TableSortLabel from '@mui/material/TableSortLabel';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import Button from '@mui/material/Button';
+
+const statusOptions = [
+  { value: '', label: 'All' },
+  { value: 'allowed', label: 'Allowed' },
+  { value: 'denied', label: 'Denied' },
+  { value: 'whitelisted', label: 'Whitelisted' },
+];
+
+const getValueField = (endpoint) => {
+  if (endpoint === '/ips') return 'Address';
+  if (endpoint === '/emails') return 'Address';
+  if (endpoint === '/user-agents') return 'UserAgent';
+  if (endpoint === '/countries') return 'Code';
+  return '';
+};
+
+const getValueHeader = (endpoint) => {
+  if (endpoint === '/ips') return 'IP Address';
+  if (endpoint === '/emails') return 'Email Address';
+  if (endpoint === '/user-agents') return 'User Agent';
+  if (endpoint === '/countries') return 'Country Code';
+  return 'Value';
+};
+
+const ListView = ({ endpoint, title, refresh }) => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filterValue, setFilterValue] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [orderBy, setOrderBy] = useState('ID');
+  const [order, setOrder] = useState('desc');
+
+  const valueField = getValueField(endpoint);
+  const valueHeader = getValueHeader(endpoint);
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const response = await axiosInstance.get(endpoint);
+        setItems(response.data);
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to fetch items');
+        setLoading(false);
+      }
+    };
+    fetchItems();
+  }, [endpoint, refresh]);
+
+  // Filter
+  const filteredItems = items.filter((item) => {
+    const value = (item[valueField] || '').toLowerCase();
+    const status = (item.Status || '').toLowerCase();
+    const valueMatch = filterValue === '' || value.includes(filterValue.toLowerCase());
+    const statusMatch = filterStatus === '' || status === filterStatus;
+    return valueMatch && statusMatch;
+  });
+
+  // Sortierung
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    let aValue = a[orderBy];
+    let bValue = b[orderBy];
+    if (orderBy === 'ID') {
+      aValue = aValue || 0;
+      bValue = bValue || 0;
+      return order === 'asc' ? aValue - bValue : bValue - aValue;
+    } else {
+      aValue = (aValue || '').toString().toLowerCase();
+      bValue = (bValue || '').toString().toLowerCase();
+      if (aValue < bValue) return order === 'asc' ? -1 : 1;
+      if (aValue > bValue) return order === 'asc' ? 1 : -1;
+      return 0;
+    }
+  });
+
+  const handleSort = (field) => {
+    if (orderBy === field) {
+      setOrder(order === 'asc' ? 'desc' : 'asc');
+    } else {
+      setOrderBy(field);
+      setOrder('asc');
+    }
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div className="error">{error}</div>;
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TextField
+          label={valueHeader + ' Filter'}
+          value={filterValue}
+          onChange={(e) => setFilterValue(e.target.value)}
+          size="small"
+        />
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={filterStatus}
+            label="Status"
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            {statusOptions.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Button variant="outlined" size="small" onClick={() => { setFilterValue(''); setFilterStatus(''); }}>
+          Reset
+        </Button>
+      </Box>
+      <TableContainer component={Paper}>
+        <Table className="list-table">
+          <TableHead>
+            <TableRow>
+              <TableCell>
+                <TableSortLabel
+                  active={orderBy === 'ID'}
+                  direction={orderBy === 'ID' ? order : 'asc'}
+                  onClick={() => handleSort('ID')}
+                >
+                  ID
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={orderBy === valueField}
+                  direction={orderBy === valueField ? order : 'asc'}
+                  onClick={() => handleSort(valueField)}
+                >
+                  {valueHeader}
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={orderBy === 'Status'}
+                  direction={orderBy === 'Status' ? order : 'asc'}
+                  onClick={() => handleSort('Status')}
+                >
+                  Status
+                </TableSortLabel>
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {sortedItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={3} align="center">No items found</TableCell>
+              </TableRow>
+            ) : (
+              sortedItems.map((item, idx) => (
+                <TableRow key={item.ID || item.Address || item.UserAgent || item.Code || idx}>
+                  <TableCell>{item.ID}</TableCell>
+                  <TableCell>{item[valueField]}</TableCell>
+                  <TableCell>{item.Status}</TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  );
+};
+
+export default ListView; 
