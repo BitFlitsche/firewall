@@ -15,6 +15,7 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
+import TablePagination from '@mui/material/TablePagination';
 
 const statusOptions = [
   { value: '', label: 'All' },
@@ -47,6 +48,8 @@ const ListView = ({ endpoint, title, refresh }) => {
   const [filterStatus, setFilterStatus] = useState('');
   const [orderBy, setOrderBy] = useState('ID');
   const [order, setOrder] = useState('desc');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const valueField = getValueField(endpoint);
   const valueHeader = getValueHeader(endpoint);
@@ -91,6 +94,9 @@ const ListView = ({ endpoint, title, refresh }) => {
     }
   });
 
+  // Slice für aktuelle Seite
+  const paginatedItems = sortedItems.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
   const handleSort = (field) => {
     if (orderBy === field) {
       setOrder(order === 'asc' ? 'desc' : 'asc');
@@ -98,6 +104,15 @@ const ListView = ({ endpoint, title, refresh }) => {
       setOrderBy(field);
       setOrder('asc');
     }
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
   if (loading) return <div>Loading...</div>;
@@ -129,6 +144,16 @@ const ListView = ({ endpoint, title, refresh }) => {
         </Button>
       </Box>
       <TableContainer component={Paper}>
+        <TablePagination
+          component="div"
+          count={sortedItems.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          labelRowsPerPage="Einträge pro Seite:"
+        />
         <Table className="list-table">
           <TableHead>
             <TableRow>
@@ -162,12 +187,12 @@ const ListView = ({ endpoint, title, refresh }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {sortedItems.length === 0 ? (
+            {paginatedItems.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} align="center">No items found</TableCell>
               </TableRow>
             ) : (
-              sortedItems.map((item, idx) => (
+              paginatedItems.map((item, idx) => (
                 <TableRow key={item.ID || item.Address || item.UserAgent || item.Code || idx}>
                   <TableCell>{item.ID}</TableCell>
                   <TableCell>{item[valueField]}</TableCell>
@@ -177,6 +202,16 @@ const ListView = ({ endpoint, title, refresh }) => {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={sortedItems.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          labelRowsPerPage="Einträge pro Seite:"
+        />
       </TableContainer>
     </Box>
   );
