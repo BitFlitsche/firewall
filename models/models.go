@@ -2,9 +2,9 @@ package models
 
 // IP represents the structure for the IP addresses table
 type IP struct {
-	ID      uint   `gorm:"primaryKey" json:"id"`
-	Address string `gorm:"unique;not null" json:"ip_address"`
-	Status  string `gorm:"not null" json:"status"` // "denied", "allowed", "whitelisted"
+	ID      uint   `gorm:"primaryKey"`
+	Address string `gorm:"unique;not null"`
+	Status  string `gorm:"not null"` // "denied", "allowed", "whitelisted"
 }
 
 // Email represents the structure for the Emails table
