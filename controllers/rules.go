@@ -110,6 +110,23 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// Count-Stats für IPs
+func GetIPStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var total, allowed, denied, whitelisted int64
+		db.Model(&models.IP{}).Count(&total)
+		db.Model(&models.IP{}).Where("status = ?", "allowed").Count(&allowed)
+		db.Model(&models.IP{}).Where("status = ?", "denied").Count(&denied)
+		db.Model(&models.IP{}).Where("status = ?", "whitelisted").Count(&whitelisted)
+		c.JSON(http.StatusOK, gin.H{
+			"total":       total,
+			"allowed":     allowed,
+			"denied":      denied,
+			"whitelisted": whitelisted,
+		})
+	}
+}
+
 // CreateEmail fügt eine neue E-Mail hinzu
 // @Summary      Neue E-Mail anlegen
 // @Description  Legt eine neue E-Mail-Adresse mit Status an
@@ -202,6 +219,23 @@ func GetEmails(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"items": emails,
 			"total": total,
+		})
+	}
+}
+
+// Count-Stats für Emails
+func GetEmailStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var total, allowed, denied, whitelisted int64
+		db.Model(&models.Email{}).Count(&total)
+		db.Model(&models.Email{}).Where("status = ?", "allowed").Count(&allowed)
+		db.Model(&models.Email{}).Where("status = ?", "denied").Count(&denied)
+		db.Model(&models.Email{}).Where("status = ?", "whitelisted").Count(&whitelisted)
+		c.JSON(http.StatusOK, gin.H{
+			"total":       total,
+			"allowed":     allowed,
+			"denied":      denied,
+			"whitelisted": whitelisted,
 		})
 	}
 }
@@ -302,6 +336,23 @@ func GetUserAgents(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// Count-Stats für UserAgents
+func GetUserAgentStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var total, allowed, denied, whitelisted int64
+		db.Model(&models.UserAgent{}).Count(&total)
+		db.Model(&models.UserAgent{}).Where("status = ?", "allowed").Count(&allowed)
+		db.Model(&models.UserAgent{}).Where("status = ?", "denied").Count(&denied)
+		db.Model(&models.UserAgent{}).Where("status = ?", "whitelisted").Count(&whitelisted)
+		c.JSON(http.StatusOK, gin.H{
+			"total":       total,
+			"allowed":     allowed,
+			"denied":      denied,
+			"whitelisted": whitelisted,
+		})
+	}
+}
+
 // CreateCountry fügt ein neues Land hinzu
 // @Summary      Neues Land anlegen
 // @Description  Legt einen neuen Ländercode mit Status an
@@ -394,6 +445,23 @@ func GetCountries(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"items": countries,
 			"total": total,
+		})
+	}
+}
+
+// Count-Stats für Countries
+func GetCountryStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var total, allowed, denied, whitelisted int64
+		db.Model(&models.Country{}).Count(&total)
+		db.Model(&models.Country{}).Where("status = ?", "allowed").Count(&allowed)
+		db.Model(&models.Country{}).Where("status = ?", "denied").Count(&denied)
+		db.Model(&models.Country{}).Where("status = ?", "whitelisted").Count(&whitelisted)
+		c.JSON(http.StatusOK, gin.H{
+			"total":       total,
+			"allowed":     allowed,
+			"denied":      denied,
+			"whitelisted": whitelisted,
 		})
 	}
 }

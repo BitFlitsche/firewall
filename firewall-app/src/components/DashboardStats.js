@@ -47,29 +47,19 @@ const DashboardStats = () => {
       setLoading(true);
       setError('');
 
-      // Fetch all data
+      // Lade nur die Stats-Endpunkte
       const [ipsRes, emailsRes, userAgentsRes, countriesRes] = await Promise.all([
-        axios.get('/ips'),
-        axios.get('/emails'),
-        axios.get('/user-agents'),
-        axios.get('/countries')
+        axios.get('/ips/stats'),
+        axios.get('/emails/stats'),
+        axios.get('/user-agents/stats'),
+        axios.get('/countries/stats')
       ]);
 
-      const ips = ipsRes.data.items || [];
-      const emails = emailsRes.data.items || [];
-      const userAgents = userAgentsRes.data.items || [];
-      const countries = countriesRes.data.items || [];
-
-      const ipCounts = countStatuses(ips, 'Status');
-      const emailCounts = countStatuses(emails, 'Status');
-      const userAgentCounts = countStatuses(userAgents, 'Status');
-      const countryCounts = countStatuses(countries, 'Status');
-
       setStats({
-        ips: { total: ipsRes.data.total || ips.length, ...ipCounts },
-        emails: { total: emailsRes.data.total || emails.length, ...emailCounts },
-        userAgents: { total: userAgentsRes.data.total || userAgents.length, ...userAgentCounts },
-        countries: { total: countriesRes.data.total || countries.length, ...countryCounts }
+        ips: ipsRes.data,
+        emails: emailsRes.data,
+        userAgents: userAgentsRes.data,
+        countries: countriesRes.data
       });
     } catch (err) {
       setError('Failed to load statistics');
