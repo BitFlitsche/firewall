@@ -11,7 +11,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "firewall/docs" // Swagger-Dokumentation
+
 	"github.com/gin-gonic/gin"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func main() {
@@ -45,6 +48,10 @@ func main() {
 	// Set up Gin and routes
 	r := gin.Default()
 	routes.SetupRoutes(r)
+
+	// Swagger-UI Route
+	r.GET("/swagger/*any", gin.WrapH(httpSwagger.Handler()))
+	// Die Swagger-UI ist jetzt erreichbar unter: http://localhost:8081/swagger/index.html
 
 	// Set up graceful shutdown
 	quit := make(chan os.Signal, 1)

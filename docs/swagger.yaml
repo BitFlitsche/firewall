@@ -1,0 +1,290 @@
+definitions:
+  controllers.FilterRequest:
+    properties:
+      country:
+        type: string
+      email:
+        type: string
+      ip:
+        type: string
+      user_agent:
+        type: string
+    type: object
+  models.Country:
+    properties:
+      code:
+        description: ISO 3166-1 alpha-2 code
+        type: string
+      id:
+        type: integer
+      status:
+        description: '"denied", "allowed", "whitelisted"'
+        type: string
+    type: object
+  models.Email:
+    properties:
+      address:
+        type: string
+      id:
+        type: integer
+      status:
+        description: '"denied", "allowed", "whitelisted"'
+        type: string
+    type: object
+  models.IP:
+    properties:
+      id:
+        type: integer
+      ip_address:
+        type: string
+      status:
+        description: '"denied", "allowed", "whitelisted"'
+        type: string
+    type: object
+  models.UserAgent:
+    properties:
+      id:
+        type: integer
+      status:
+        description: '"denied", "allowed", "whitelisted"'
+        type: string
+      userAgent:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /country:
+    get:
+      description: Gibt alle gespeicherten Länder zurück
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Country'
+            type: array
+      summary: Länder auflisten
+      tags:
+      - country
+    post:
+      consumes:
+      - application/json
+      description: Legt einen neuen Ländercode mit Status an
+      parameters:
+      - description: Länder-Daten
+        in: body
+        name: country
+        required: true
+        schema:
+          $ref: '#/definitions/models.Country'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Country'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Neues Land anlegen
+      tags:
+      - country
+  /email:
+    get:
+      description: Gibt alle gespeicherten E-Mail-Adressen zurück
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Email'
+            type: array
+      summary: E-Mails auflisten
+      tags:
+      - email
+    post:
+      consumes:
+      - application/json
+      description: Legt eine neue E-Mail-Adresse mit Status an
+      parameters:
+      - description: E-Mail-Daten
+        in: body
+        name: email
+        required: true
+        schema:
+          $ref: '#/definitions/models.Email'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Email'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Neue E-Mail anlegen
+      tags:
+      - email
+  /filter:
+    post:
+      consumes:
+      - application/json
+      description: Prüft, ob die angegebenen Werte erlaubt oder blockiert sind
+      parameters:
+      - description: Filterdaten
+        in: body
+        name: filter
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.FilterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "504":
+          description: Gateway Timeout
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Filtert IP, E-Mail, User-Agent und Land
+      tags:
+      - filter
+  /ip:
+    get:
+      description: Gibt alle gespeicherten IP-Adressen zurück
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.IP'
+            type: array
+      summary: IP-Adressen auflisten
+      tags:
+      - ip
+    post:
+      consumes:
+      - application/json
+      description: Legt eine neue IP-Adresse mit Status an
+      parameters:
+      - description: IP-Daten
+        in: body
+        name: ip
+        required: true
+        schema:
+          $ref: '#/definitions/models.IP'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.IP'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Neue IP-Adresse anlegen
+      tags:
+      - ip
+  /useragent:
+    get:
+      description: Gibt alle gespeicherten User-Agents zurück
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.UserAgent'
+            type: array
+      summary: User-Agents auflisten
+      tags:
+      - useragent
+    post:
+      consumes:
+      - application/json
+      description: Legt einen neuen User-Agent mit Status an
+      parameters:
+      - description: User-Agent-Daten
+        in: body
+        name: useragent
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserAgent'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserAgent'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Neuen User-Agent anlegen
+      tags:
+      - useragent
+swagger: "2.0"

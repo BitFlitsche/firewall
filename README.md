@@ -93,6 +93,44 @@ The frontend will be available at http://localhost:3000
 ### Filtering
 - `POST /filter` - Filter requests based on multiple criteria
 
+## API-Dokumentation (Swagger)
+
+Dieses Projekt nutzt [Swaggo](https://github.com/swaggo/swag) zur automatischen Generierung einer Swagger/OpenAPI-Dokumentation.
+
+### Beispiel für Handler-Kommentare
+```go
+// @Summary      Filtert IP, E-Mail, User-Agent und Land
+// @Description  Prüft, ob die angegebenen Werte erlaubt oder blockiert sind
+// @Tags         filter
+// @Accept       json
+// @Produce      json
+// @Param        filter  body      FilterRequest  true  "Filterdaten"
+// @Success      200     {object}  map[string]interface{}
+// @Failure      400     {object}  map[string]string
+// @Failure      504     {object}  map[string]string
+// @Failure      500     {object}  map[string]string
+// @Router       /filter [post]
+```
+
+### Swagger-Dokumentation generieren
+
+1. Installiere swag (falls noch nicht geschehen):
+   ```sh
+   go install github.com/swaggo/swag/cmd/swag@latest
+   ```
+2. Generiere die Swagger-Dokumentation:
+   ```sh
+   swag init
+   ```
+   Dadurch wird das Verzeichnis `docs/` mit der OpenAPI-Dokumentation erstellt.
+
+3. Starte das Backend und rufe die Swagger-UI im Browser auf:
+   ```
+   http://localhost:8081/swagger/index.html
+   ```
+
+Weitere Infos: [Swaggo Doku](https://github.com/swaggo/swag)
+
 ## Usage
 
 1. Access the frontend at http://localhost:3000

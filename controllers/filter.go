@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"firewall/services"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 // FilterRequest defines the structure for the incoming JSON request
@@ -18,6 +19,17 @@ type FilterRequest struct {
 }
 
 // FilterRequestHandler handles filtering of IP, email, user agents, and countries
+// @Summary      Filtert IP, E-Mail, User-Agent und Land
+// @Description  Prüft, ob die angegebenen Werte erlaubt oder blockiert sind
+// @Tags         filter
+// @Accept       json
+// @Produce      json
+// @Param        filter  body      FilterRequest  true  "Filterdaten"
+// @Success      200     {object}  map[string]interface{}
+// @Failure      400     {object}  map[string]string
+// @Failure      504     {object}  map[string]string
+// @Failure      500     {object}  map[string]string
+// @Router       /filter [post]
 func FilterRequestHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input FilterRequest
