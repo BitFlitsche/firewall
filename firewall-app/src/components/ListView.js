@@ -96,7 +96,7 @@ const ListView = ({ endpoint, title, refresh }) => {
       setLoading(true);
       setError(null);
       try {
-        const response = await axiosInstance.get(endpoint, (endpoint === '/ips' || endpoint === '/emails' || endpoint === '/user-agents' || endpoint === '/countries') ? {
+        const response = await axiosInstance.get(endpoint, {
           params: {
             page: page + 1,
             limit: rowsPerPage,
@@ -105,7 +105,7 @@ const ListView = ({ endpoint, title, refresh }) => {
             orderBy,
             order,
           }
-        } : undefined);
+        });
         if (response.data && Array.isArray(response.data)) {
           setItems(response.data);
           setTotal(response.data.length);
@@ -126,45 +126,18 @@ const ListView = ({ endpoint, title, refresh }) => {
     // eslint-disable-next-line
   }, [endpoint, refresh, page, rowsPerPage, filterStatus, filterValue, orderBy, order]);
 
-  // Für Endpunkte mit serverseitiger Pagination keinerlei clientseitige Filterung/Sortierung/Slicing
-  let paginatedItems = items;
-  let sortedItems = items; // immer definiert
-  if (!(endpoint === '/ips' || endpoint === '/emails' || endpoint === '/user-agents' || endpoint === '/countries')) {
-    // Legacy/sonstige Endpunkte: clientseitige Filterung/Sortierung/Slicing
-    let filteredItems = items.filter((item) => {
-      const value = (item[valueField] || '').toLowerCase();
-      const status = (item.Status || '').toLowerCase();
-      const valueMatch = filterValue === '' || value.includes(filterValue.toLowerCase());
-      const statusMatch = filterStatus === '' || status === filterStatus;
-      return valueMatch && statusMatch;
-    });
-    sortedItems = [...filteredItems].sort((a, b) => {
-      let aValue = a[orderBy];
-      let bValue = b[orderBy];
-      if (orderBy === 'ID') {
-        aValue = aValue || 0;
-        bValue = bValue || 0;
-        return order === 'asc' ? aValue - bValue : bValue - aValue;
-      } else {
-        aValue = (aValue || '').toString().toLowerCase();
-        bValue = (bValue || '').toString().toLowerCase();
-        if (aValue < bValue) return order === 'asc' ? -1 : 1;
-        if (aValue > bValue) return order === 'asc' ? 1 : -1;
-        return 0;
-      }
-    });
-    paginatedItems = sortedItems.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  }
-
+  // Nur noch serverseitige Pagination, Filterung und Sortierung
+  const paginatedItems = items;
+  // Entferne alle clientseitigen Filter-/Sortier-/Slicing-Logik
   // Für /ips, /emails, /user-agents, /countries: total immer aus API übernehmen
   const [total, setTotal] = useState(0);
   useEffect(() => {
     // Nur für Endpunkte ohne serverseitige Pagination (z.B. falls noch legacy)
     if (endpoint !== '/ips' && endpoint !== '/emails' && endpoint !== '/user-agents' && endpoint !== '/countries') {
-      setTotal(sortedItems.length);
+      setTotal(items.length);
     }
     // eslint-disable-next-line
-  }, [sortedItems, endpoint]);
+  }, [items, endpoint]);
 
   // Status-Counts berechnen
   const statusCounts = items.reduce((acc, item) => {
