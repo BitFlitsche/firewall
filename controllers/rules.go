@@ -11,6 +11,10 @@ import (
 	"strconv"
 	"time"
 
+	"context"
+	"encoding/json"
+	"firewall/config"
+
 	"github.com/gin-gonic/gin"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
@@ -41,16 +45,45 @@ func SystemStatsHandler(db *gorm.DB) gin.HandlerFunc {
 		memStats, _ := mem.VirtualMemory()
 		diskStats, _ := disk.Usage("/")
 		pid := os.Getpid()
+		// DB Connections korrekt auslesen
 		var dbConns int64
-		db.Raw("SHOW STATUS WHERE variable_name = 'Threads_connected'").Scan(&dbConns)
+		var threadsRow struct {
+			VariableName string
+			Value        string
+		}
+		if err := db.Raw("SHOW STATUS WHERE variable_name = 'Threads_connected'").Scan(&threadsRow).Error; err == nil {
+			if v, err := strconv.ParseInt(threadsRow.Value, 10, 64); err == nil {
+				dbConns = v
+			}
+		}
 
 		// DB Health
 		dbHealth := "ok"
 		if err := db.Exec("SELECT 1").Error; err != nil {
 			dbHealth = "error"
 		}
-		// ES Health (Dummy, implementiere falls ES-Client verfügbar)
+		// ES Health
 		esHealth := "unknown"
+		if config.ESClient != nil {
+			res, err := config.ESClient.Cluster.Health(
+				config.ESClient.Cluster.Health.WithContext(context.Background()),
+			)
+			if err == nil && res != nil {
+				defer res.Body.Close()
+				var health map[string]interface{}
+				if err := json.NewDecoder(res.Body).Decode(&health); err == nil {
+					if status, ok := health["status"].(string); ok {
+						esHealth = status // "green", "yellow", "red"
+					} else {
+						esHealth = "error"
+					}
+				} else {
+					esHealth = "error"
+				}
+			} else {
+				esHealth = "error"
+			}
+		}
 
 		c.JSON(200, gin.H{
 			"uptime":         uptime,

@@ -21,6 +21,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "postbuild": "cp public/logo192.png build/ && cp public/logo512.png build/",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

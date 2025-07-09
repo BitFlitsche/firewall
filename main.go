@@ -59,6 +59,8 @@ func main() {
 	r.Static("/static", "./firewall-app/build/static")
 	r.StaticFile("/favicon.ico", "./firewall-app/build/favicon.ico")
 	r.StaticFile("/manifest.json", "./firewall-app/build/manifest.json")
+	r.StaticFile("/logo192.png", "./firewall-app/build/logo192.png")
+	r.StaticFile("/logo512.png", "./firewall-app/build/logo512.png")
 
 	// Fallback: serve index.html for all other routes (client-side routing)
 	r.NoRoute(func(c *gin.Context) {

@@ -8,6 +8,7 @@ import FilterForm from './components/FilterForm';
 import DashboardStats from './components/DashboardStats';
 import CharsetForm from './components/CharsetForm';
 import UsernameForm from './components/UsernameForm';
+import SystemHealthPage from './pages/SystemHealthPage';
 import './components/styles.css';
 
 // MUI imports
@@ -29,18 +30,20 @@ import EmailIcon from '@mui/icons-material/Email';
 import DnsIcon from '@mui/icons-material/Dns';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import PersonIcon from '@mui/icons-material/Person';
+import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 
 const drawerWidth = 220;
 
 const navItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'IP List', icon: <PublicIcon />, path: '/ip-list' },
-  { text: 'Email List', icon: <EmailIcon />, path: '/email-list' },
-  { text: 'User Agent List', icon: <PersonIcon />, path: '/useragent-list' },
-  { text: 'Country List', icon: <DnsIcon />, path: '/country-list' },
-  { text: 'Filter List', icon: <FilterListIcon />, path: '/filter-list' },
+  { text: 'System Health', icon: <HealthAndSafetyIcon />, path: '/system-health' },
   { text: 'Charset List', icon: <DnsIcon />, path: '/charset-list' },
+  { text: 'Country List', icon: <DnsIcon />, path: '/country-list' },
+  { text: 'Email List', icon: <EmailIcon />, path: '/email-list' },
+  { text: 'IP List', icon: <PublicIcon />, path: '/ip-list' },
+  { text: 'User Agent List', icon: <PersonIcon />, path: '/useragent-list' },
   { text: 'Username List', icon: <DnsIcon />, path: '/username-list' },
+  { text: 'Filter List', icon: <FilterListIcon />, path: '/filter-list' },
 ];
 
 function Dashboard() {
@@ -109,6 +112,7 @@ function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/system-health" element={<SystemHealthPage />} />
           <Route path="/ip-list" element={<IPForm />} />
           <Route path="/email-list" element={<EmailForm />} />
           <Route path="/useragent-list" element={<UserAgentForm />} />

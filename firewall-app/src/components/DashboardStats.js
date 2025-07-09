@@ -21,9 +21,111 @@ import {
   Flag as FlagIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import SystemStats from './SystemStats';
+// SystemStats import entfernen
+// import SystemStats from './SystemStats';
 
 const statusLabels = ['allowed', 'denied', 'whitelisted'];
+
+// Extrahiere die Filter-Statistik-Tabelle in eine eigene Komponente
+const FilterStats = ({ stats, error, handleCountClick, getFilterIcon, getStatusColor }) => (
+  <Paper sx={{ p: 3 }} elevation={3}>
+    <Typography variant="h5" gutterBottom>
+      Filter Statistics
+    </Typography>
+    {error && (
+      <Alert severity="error" sx={{ mb: 2 }}>
+        {error}
+      </Alert>
+    )}
+    <TableContainer>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Filter Type</TableCell>
+            <TableCell>Total</TableCell>
+            <TableCell>Allowed</TableCell>
+            <TableCell>Denied</TableCell>
+            <TableCell>Whitelisted</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          <TableRow>
+            <TableCell>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {getFilterIcon('IP Addresses')}
+                IP Addresses
+              </Box>
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', null)}>{stats.ips.total}</TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'allowed')}>
+              <Chip label={stats.ips.allowed} color={getStatusColor(stats.ips.allowed)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'denied')}>
+              <Chip label={stats.ips.denied} color={getStatusColor(stats.ips.denied)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'whitelisted')}>
+              <Chip label={stats.ips.whitelisted} color={getStatusColor(stats.ips.whitelisted)} size="small" />
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {getFilterIcon('Email Addresses')}
+                Email Addresses
+              </Box>
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', null)}>{stats.emails.total}</TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', 'allowed')}>
+              <Chip label={stats.emails.allowed} color={getStatusColor(stats.emails.allowed)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', 'denied')}>
+              <Chip label={stats.emails.denied} color={getStatusColor(stats.emails.denied)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', 'whitelisted')}>
+              <Chip label={stats.emails.whitelisted} color={getStatusColor(stats.emails.whitelisted)} size="small" />
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {getFilterIcon('User Agents')}
+                User Agents
+              </Box>
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', null)}>{stats.userAgents.total}</TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', 'allowed')}>
+              <Chip label={stats.userAgents.allowed} color={getStatusColor(stats.userAgents.allowed)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', 'denied')}>
+              <Chip label={stats.userAgents.denied} color={getStatusColor(stats.userAgents.denied)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', 'whitelisted')}>
+              <Chip label={stats.userAgents.whitelisted} color={getStatusColor(stats.userAgents.whitelisted)} size="small" />
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {getFilterIcon('Countries')}
+                Countries
+              </Box>
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', null)}>{stats.countries.total}</TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'allowed')}>
+              <Chip label={stats.countries.allowed} color={getStatusColor(stats.countries.allowed)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'denied')}>
+              <Chip label={stats.countries.denied} color={getStatusColor(stats.countries.denied)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'whitelisted')}>
+              <Chip label={stats.countries.whitelisted} color={getStatusColor(stats.countries.whitelisted)} size="small" />
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </TableContainer>
+  </Paper>
+);
 
 const DashboardStats = () => {
   const [stats, setStats] = useState({
@@ -116,111 +218,20 @@ const DashboardStats = () => {
     );
   }
 
+  // Layout: FilterStats auf volle Breite
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', mt: 4 }}>
-      <SystemStats />
-      <Paper sx={{ p: 3, mt: 3 }} elevation={3}>
-        <Typography variant="h5" gutterBottom>
-          Filter Statistics
-        </Typography>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Filter Type</TableCell>
-                <TableCell>Total</TableCell>
-                <TableCell>Allowed</TableCell>
-                <TableCell>Denied</TableCell>
-                <TableCell>Whitelisted</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              <TableRow>
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {getFilterIcon('IP Addresses')}
-                    IP Addresses
-                  </Box>
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', null)}>{stats.ips.total}</TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'allowed')}>
-                  <Chip label={stats.ips.allowed} color={getStatusColor(stats.ips.allowed)} size="small" />
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'denied')}>
-                  <Chip label={stats.ips.denied} color={getStatusColor(stats.ips.denied)} size="small" />
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'whitelisted')}>
-                  <Chip label={stats.ips.whitelisted} color={getStatusColor(stats.ips.whitelisted)} size="small" />
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {getFilterIcon('Email Addresses')}
-                    Email Addresses
-                  </Box>
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', null)}>{stats.emails.total}</TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', 'allowed')}>
-                  <Chip label={stats.emails.allowed} color={getStatusColor(stats.emails.allowed)} size="small" />
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', 'denied')}>
-                  <Chip label={stats.emails.denied} color={getStatusColor(stats.emails.denied)} size="small" />
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('emails', 'whitelisted')}>
-                  <Chip label={stats.emails.whitelisted} color={getStatusColor(stats.emails.whitelisted)} size="small" />
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {getFilterIcon('User Agents')}
-                    User Agents
-                  </Box>
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', null)}>{stats.userAgents.total}</TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', 'allowed')}>
-                  <Chip label={stats.userAgents.allowed} color={getStatusColor(stats.userAgents.allowed)} size="small" />
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', 'denied')}>
-                  <Chip label={stats.userAgents.denied} color={getStatusColor(stats.userAgents.denied)} size="small" />
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('userAgents', 'whitelisted')}>
-                  <Chip label={stats.userAgents.whitelisted} color={getStatusColor(stats.userAgents.whitelisted)} size="small" />
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {getFilterIcon('Countries')}
-                    Countries
-                  </Box>
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', null)}>{stats.countries.total}</TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'allowed')}>
-                  <Chip label={stats.countries.allowed} color={getStatusColor(stats.countries.allowed)} size="small" />
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'denied')}>
-                  <Chip label={stats.countries.denied} color={getStatusColor(stats.countries.denied)} size="small" />
-                </TableCell>
-                <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'whitelisted')}>
-                  <Chip label={stats.countries.whitelisted} color={getStatusColor(stats.countries.whitelisted)} size="small" />
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            <strong>Total Filters:</strong> {stats.ips.total + stats.emails.total + stats.userAgents.total + stats.countries.total} entries
-          </Typography>
+    <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4 }}>
+      <Box sx={{ flexGrow: 1 }}>
+        <Box sx={{ width: '100%' }}>
+          <FilterStats
+            stats={stats}
+            error={error}
+            handleCountClick={handleCountClick}
+            getFilterIcon={getFilterIcon}
+            getStatusColor={getStatusColor}
+          />
         </Box>
-      </Paper>
+      </Box>
     </Box>
   );
 };
