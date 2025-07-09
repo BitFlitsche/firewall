@@ -6,6 +6,8 @@ import UserAgentForm from './components/UserAgentForm';
 import CountryForm from './components/CountryForm';
 import FilterForm from './components/FilterForm';
 import DashboardStats from './components/DashboardStats';
+import CharsetForm from './components/CharsetForm';
+import UsernameForm from './components/UsernameForm';
 import './components/styles.css';
 
 // MUI imports
@@ -37,6 +39,8 @@ const navItems = [
   { text: 'User Agent List', icon: <PersonIcon />, path: '/useragent-list' },
   { text: 'Country List', icon: <DnsIcon />, path: '/country-list' },
   { text: 'Filter List', icon: <FilterListIcon />, path: '/filter-list' },
+  { text: 'Charset List', icon: <DnsIcon />, path: '/charset-list' },
+  { text: 'Username List', icon: <DnsIcon />, path: '/username-list' },
 ];
 
 function Dashboard() {
@@ -110,6 +114,8 @@ function App() {
           <Route path="/useragent-list" element={<UserAgentForm />} />
           <Route path="/country-list" element={<CountryForm />} />
           <Route path="/filter-list" element={<FilterForm />} />
+          <Route path="/charset-list" element={<CharsetForm />} />
+          <Route path="/username-list" element={<UsernameForm />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

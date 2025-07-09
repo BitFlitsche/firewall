@@ -90,8 +90,30 @@ func (ep *EventProcessor) processEvent(event Event) {
 		ep.processUserAgentEvent(event)
 	case "country":
 		ep.processCountryEvent(event)
+	case "charset":
+		ep.processCharsetEvent(event)
+	case "username":
+		ep.processUsernameEvent(event)
 	default:
 		log.Printf("Unknown event type: %s", event.Type)
+	}
+}
+
+// Charset-Event-Handler
+func (ep *EventProcessor) processCharsetEvent(event Event) {
+	switch event.Action {
+	case "created", "updated":
+		if charsetData, ok := event.Data.(models.CharsetRule); ok {
+			if err := SyncCharsetToES(charsetData); err != nil {
+				log.Printf("Error indexing charset: %v", err)
+			}
+		}
+	case "deleted":
+		if charsetData, ok := event.Data.(models.CharsetRule); ok {
+			if err := DeleteCharsetFromES(charsetData.ID); err != nil {
+				log.Printf("Error deleting charset from ES: %v", err)
+			}
+		}
 	}
 }
 
@@ -154,6 +176,24 @@ func (ep *EventProcessor) processCountryEvent(event Event) {
 		}
 	case "deleted":
 		log.Printf("Country deletion event received")
+	}
+}
+
+// Username-Event-Handler
+func (ep *EventProcessor) processUsernameEvent(event Event) {
+	switch event.Action {
+	case "created", "updated":
+		if usernameData, ok := event.Data.(models.UsernameRule); ok {
+			if err := SyncUsernameToES(usernameData); err != nil {
+				log.Printf("Error indexing username: %v", err)
+			}
+		}
+	case "deleted":
+		if usernameData, ok := event.Data.(models.UsernameRule); ok {
+			if err := DeleteUsernameFromES(usernameData.ID); err != nil {
+				log.Printf("Error deleting username from ES: %v", err)
+			}
+		}
 	}
 }
 

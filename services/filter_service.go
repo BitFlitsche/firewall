@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"firewall/config"
+	"firewall/models"
+	"fmt"
+	"log"
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v8/esapi"
+	"gorm.io/gorm"
 )
 
 // FilterResult defines the structure of the response for filtering
@@ -253,5 +257,111 @@ func filterCountry(ctx context.Context, country string, result chan FilterResult
 		}
 	} else {
 		result <- FilterResult{Type: "Country", Status: "error"}
+	}
+}
+
+// SyncCharsetToES synchronisiert eine CharsetRule zu Elasticsearch
+func SyncCharsetToES(charset models.CharsetRule) error {
+	ctx := context.Background()
+	_, err := config.ESClient.Index(
+		"charsets",
+		strings.NewReader(fmt.Sprintf(`{"id": %d, "charset": "%s", "status": "%s"}`, charset.ID, charset.Charset, charset.Status)),
+		config.ESClient.Index.WithDocumentID(fmt.Sprintf("%d", charset.ID)),
+		config.ESClient.Index.WithContext(ctx),
+	)
+	if err == nil {
+		log.Printf("Indexed Charset: %d %s %s", charset.ID, charset.Charset, charset.Status)
+	}
+	return err
+}
+
+// DeleteCharsetFromES entfernt eine CharsetRule aus Elasticsearch
+func DeleteCharsetFromES(id uint) error {
+	ctx := context.Background()
+	_, err := config.ESClient.Delete(
+		"charsets",
+		fmt.Sprintf("%d", id),
+		config.ESClient.Delete.WithContext(ctx),
+	)
+	return err
+}
+
+// SyncAllCharsetsToES synchronisiert alle CharsetRules nach Elasticsearch
+func SyncAllCharsetsToES(db *gorm.DB) error {
+	var charsets []models.CharsetRule
+	if err := db.Find(&charsets).Error; err != nil {
+		return err
+	}
+	for _, c := range charsets {
+		_ = SyncCharsetToES(c)
+	}
+	log.Printf("Synced %d charsets to Elasticsearch", len(charsets))
+	return nil
+}
+
+// SyncUsernameToES synchronisiert eine UsernameRule zu Elasticsearch
+func SyncUsernameToES(username models.UsernameRule) error {
+	ctx := context.Background()
+	_, err := config.ESClient.Index(
+		"usernames",
+		strings.NewReader(fmt.Sprintf(`{"id": %d, "username": "%s", "status": "%s"}`, username.ID, username.Username, username.Status)),
+		config.ESClient.Index.WithDocumentID(fmt.Sprintf("%d", username.ID)),
+		config.ESClient.Index.WithContext(ctx),
+	)
+	if err == nil {
+		log.Printf("Indexed Username: %d %s %s", username.ID, username.Username, username.Status)
+	}
+	return err
+}
+
+// DeleteUsernameFromES entfernt eine UsernameRule aus Elasticsearch
+func DeleteUsernameFromES(id uint) error {
+	ctx := context.Background()
+	_, err := config.ESClient.Delete(
+		"usernames",
+		fmt.Sprintf("%d", id),
+		config.ESClient.Delete.WithContext(ctx),
+	)
+	return err
+}
+
+// SyncAllUsernamesToES synchronisiert alle UsernameRules nach Elasticsearch
+func SyncAllUsernamesToES(db *gorm.DB) error {
+	var usernames []models.UsernameRule
+	if err := db.Find(&usernames).Error; err != nil {
+		return err
+	}
+	for _, u := range usernames {
+		_ = SyncUsernameToES(u)
+	}
+	log.Printf("Synced %d usernames to Elasticsearch", len(usernames))
+	return nil
+}
+
+// Event-Handler für Charset-Events
+func HandleCharsetEvent(action string, data interface{}) {
+	charset, ok := data.(models.CharsetRule)
+	if !ok {
+		return
+	}
+	switch action {
+	case "created", "updated":
+		_ = SyncCharsetToES(charset)
+	case "deleted":
+		_ = DeleteCharsetFromES(charset.ID)
+	}
+}
+
+// Event-Handler für Username-Events
+func HandleUsernameEvent(action string, data interface{}) {
+	username, ok := data.(models.UsernameRule)
+	if !ok {
+		return
+	}
+	switch action {
+	case "created", "updated":
+		_ = SyncUsernameToES(username)
+	case "deleted":
+		_ = DeleteUsernameFromES(username.ID)
 	}
 }

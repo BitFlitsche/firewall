@@ -45,8 +45,20 @@ func SetupRoutes(r *gin.Engine) {
 	r.GET("/countries", controllers.GetCountries(db))
 	r.GET("/countries/stats", controllers.GetCountryStats(db))
 
+	// CharsetRule CRUD
+	r.POST("/charset", controllers.CreateCharsetRule(db))
+	r.GET("/charsets", controllers.GetCharsetRules(db))
+	r.PUT("/charset/:id", controllers.UpdateCharsetRule(db))
+	r.DELETE("/charset/:id", controllers.DeleteCharsetRule(db))
+
+	// UsernameRule CRUD
+	r.POST("/username", controllers.CreateUsernameRule(db))
+	r.GET("/usernames", controllers.GetUsernameRules(db))
+	r.PUT("/username/:id", controllers.UpdateUsernameRule(db))
+	r.DELETE("/username/:id", controllers.DeleteUsernameRule(db))
+
 	// Filtering route
-	r.POST("/filter", controllers.FilterRequestHandler())
+	r.POST("/filter", controllers.FilterRequestHandler(db))
 
 	// Manual sync route
 	r.POST("/sync", func(c *gin.Context) {
@@ -55,41 +67,6 @@ func SetupRoutes(r *gin.Engine) {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"message": "Data synced successfully"})
-	})
-
-	// Health check route
-	r.GET("/health", func(c *gin.Context) {
-		// Check MySQL connection
-		sqlDB, err := config.DB.DB()
-		if err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "mysql": "disconnected"})
-			return
-		}
-
-		if err := sqlDB.Ping(); err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "mysql": "disconnected"})
-			return
-		}
-
-		// Check Elasticsearch connection
-		es := config.ESClient
-		res, err := es.Info()
-		if err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "elasticsearch": "disconnected"})
-			return
-		}
-		defer res.Body.Close()
-
-		c.JSON(http.StatusOK, gin.H{
-			"status":        "healthy",
-			"mysql":         "connected",
-			"elasticsearch": "connected",
-			"services": gin.H{
-				"event_processor": "running",
-				"retry_queue":     "running",
-				"scheduled_sync":  "running",
-			},
-		})
 	})
 
 	// Force sync route
@@ -113,4 +90,5 @@ func SetupRoutes(r *gin.Engine) {
 	})
 
 	r.GET("/system-stats", controllers.SystemStatsHandler(db))
+	r.POST("/sync/charsets", controllers.SyncCharsetsHandler(db))
 }

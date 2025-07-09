@@ -27,3 +27,15 @@ type Country struct {
 	Code   string `gorm:"unique;not null"` // ISO 3166-1 alpha-2 code
 	Status string `gorm:"not null"`        // "denied", "allowed", "whitelisted"
 }
+
+type CharsetRule struct {
+	ID      uint   `gorm:"primaryKey" json:"ID"`
+	Charset string `gorm:"unique;not null" json:"Charset"`
+	Status  string `gorm:"not null" json:"Status"` // denied, allowed, whitelisted
+}
+
+type UsernameRule struct {
+	ID       uint   `gorm:"primaryKey" json:"ID"`
+	Username string `gorm:"unique;not null" json:"Username"`
+	Status   string `gorm:"not null" json:"Status"` // denied, allowed, whitelisted
+}

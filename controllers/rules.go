@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -532,5 +533,157 @@ func GetCountryStats(db *gorm.DB) gin.HandlerFunc {
 			"denied":      denied,
 			"whitelisted": whitelisted,
 		})
+	}
+}
+
+// CreateCharsetRule fügt eine neue Charset-Regel hinzu
+func CreateCharsetRule(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var rule models.CharsetRule
+		if err := c.ShouldBindJSON(&rule); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if err := db.Create(&rule).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save charset rule"})
+			return
+		}
+		_ = services.SyncCharsetToES(rule)
+		services.PublishEvent("charset", "created", rule)
+		c.JSON(http.StatusOK, rule)
+	}
+}
+
+// GetCharsetRules listet alle Charset-Regeln
+func GetCharsetRules(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var rules []models.CharsetRule
+		db.Find(&rules)
+		c.JSON(http.StatusOK, rules)
+	}
+}
+
+// UpdateCharsetRule aktualisiert eine Charset-Regel
+func UpdateCharsetRule(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var rule models.CharsetRule
+		id := c.Param("id")
+		if err := db.First(&rule, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Rule not found"})
+			return
+		}
+		var input models.CharsetRule
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		rule.Charset = input.Charset
+		rule.Status = input.Status
+		if err := db.Save(&rule).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update charset rule"})
+			return
+		}
+		_ = services.SyncCharsetToES(rule)
+		services.PublishEvent("charset", "updated", rule)
+		c.JSON(http.StatusOK, rule)
+	}
+}
+
+// DeleteCharsetRule löscht eine Charset-Regel
+func DeleteCharsetRule(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		if err := db.Delete(&models.CharsetRule{}, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete charset rule"})
+			return
+		}
+		// Versuche auch aus ES zu löschen
+		_ = services.DeleteCharsetFromES(parseUint(id))
+		services.PublishEvent("charset", "deleted", models.CharsetRule{ID: parseUint(id)})
+		c.JSON(http.StatusOK, gin.H{"message": "Charset rule deleted"})
+	}
+}
+
+// Hilfsfunktion für DeleteCharsetRule
+func parseUint(s string) uint {
+	u, _ := strconv.ParseUint(s, 10, 64)
+	return uint(u)
+}
+
+// Endpoint: POST /sync/charsets
+func SyncCharsetsHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if err := services.SyncAllCharsetsToES(db); err != nil {
+			c.JSON(500, gin.H{"error": "Failed to sync charsets to Elasticsearch"})
+			return
+		}
+		c.JSON(200, gin.H{"message": "All charsets synced to Elasticsearch"})
+	}
+}
+
+// CreateUsernameRule fügt eine neue Username-Regel hinzu
+func CreateUsernameRule(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var rule models.UsernameRule
+		if err := c.ShouldBindJSON(&rule); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if err := db.Create(&rule).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save username rule"})
+			return
+		}
+		_ = services.SyncUsernameToES(rule)
+		services.PublishEvent("username", "created", rule)
+		c.JSON(http.StatusOK, rule)
+	}
+}
+
+// GetUsernameRules listet alle Username-Regeln
+func GetUsernameRules(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var rules []models.UsernameRule
+		db.Find(&rules)
+		c.JSON(http.StatusOK, rules)
+	}
+}
+
+// UpdateUsernameRule aktualisiert eine Username-Regel
+func UpdateUsernameRule(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var rule models.UsernameRule
+		id := c.Param("id")
+		if err := db.First(&rule, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Rule not found"})
+			return
+		}
+		var input models.UsernameRule
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		rule.Username = input.Username
+		rule.Status = input.Status
+		if err := db.Save(&rule).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update username rule"})
+			return
+		}
+		_ = services.SyncUsernameToES(rule)
+		services.PublishEvent("username", "updated", rule)
+		c.JSON(http.StatusOK, rule)
+	}
+}
+
+// DeleteUsernameRule löscht eine Username-Regel
+func DeleteUsernameRule(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		if err := db.Delete(&models.UsernameRule{}, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete username rule"})
+			return
+		}
+		_ = services.DeleteUsernameFromES(parseUint(id))
+		services.PublishEvent("username", "deleted", models.UsernameRule{ID: parseUint(id)})
+		c.JSON(http.StatusOK, gin.H{"message": "Username rule deleted"})
 	}
 }

@@ -46,6 +46,9 @@ func main() {
 	if err := services.SyncAllData(); err != nil {
 		log.Printf("Warning: Initial sync failed: %v", err)
 	}
+	if err := services.SyncAllCharsetsToES(config.DB); err != nil {
+		log.Printf("Warning: Initial charset sync failed: %v", err)
+	}
 
 	// Set up Gin and routes
 	r := gin.Default()
