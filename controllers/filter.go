@@ -86,11 +86,11 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 			for _, rule := range charsetRules {
 				if rule.Charset == cs {
 					if rule.Status == "denied" {
-						c.JSON(200, gin.H{"result": "denied", "reason": "charset denied", "field": field, "charset": cs})
+						c.JSON(200, gin.H{"result": "denied", "reason": "charset denied", "field": field, field: value})
 						return
 					}
 					if rule.Status == "whitelisted" {
-						c.JSON(200, gin.H{"result": "whitelisted", "reason": "charset whitelisted", "field": field, "charset": cs})
+						c.JSON(200, gin.H{"result": "whitelisted", "reason": "charset whitelisted", "field": field, field: value})
 						return
 					}
 				}

@@ -13,7 +13,8 @@ const FilterForm = () => {
         ip: '',
         email: '',
         user_agent: '',
-        country: ''
+        country: '',
+        username: ''
     });
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
@@ -36,7 +37,8 @@ const FilterForm = () => {
                 ip: '',
                 email: '',
                 user_agent: '',
-                country: ''
+                country: '',
+                username: ''
             });
         } catch (err) {
             setError('Error applying filter');
@@ -60,6 +62,13 @@ const FilterForm = () => {
                         value={filterData.email}
                         onChange={handleInputChange('email')}
                         placeholder="Enter email address to filter"
+                        fullWidth
+                    />
+                    <TextField
+                        label="Username"
+                        value={filterData.username}
+                        onChange={handleInputChange('username')}
+                        placeholder="Enter username to filter"
                         fullWidth
                     />
                     <TextField

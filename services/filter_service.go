@@ -14,9 +14,12 @@ import (
 )
 
 // FilterResult defines the structure of the response for filtering
+// Vereinheitlicht: result, reason, field, value
 type FilterResult struct {
-	Type   string `json:"type"`
-	Status string `json:"status"`
+	Result string      `json:"result"`
+	Reason string      `json:"reason,omitempty"`
+	Field  string      `json:"field,omitempty"`
+	Value  interface{} `json:"value,omitempty"`
 }
 
 const NumFilters = 4
@@ -38,18 +41,18 @@ func EvaluateFilters(ctx context.Context, ip, email, userAgent, country string) 
 
 // collectResults processes all filter results
 func collectResults(ctx context.Context, result chan FilterResult) (FilterResult, error) {
-	output := FilterResult{Status: "allowed"}
+	output := FilterResult{Result: "allowed"}
 
 	for i := 0; i < NumFilters; i++ {
 		select {
 		case res := <-result:
-			if res.Status == "whitelisted" {
+			if res.Result == "whitelisted" {
 				return res, nil
-			} else if res.Status == "denied" {
+			} else if res.Result == "denied" {
 				output = res // Update output to the denied result
 			}
 		case <-ctx.Done():
-			return FilterResult{Status: "timeout"}, ctx.Err()
+			return FilterResult{Result: "timeout", Reason: "timeout"}, ctx.Err()
 		}
 	}
 
@@ -74,14 +77,14 @@ func filterIP(ctx context.Context, ip string, result chan FilterResult) {
 
 	res, err := req.Do(ctx, es)
 	if err != nil {
-		result <- FilterResult{Type: "IP", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "elasticsearch error", Field: "ip", Value: ip}
 		return
 	}
 	defer res.Body.Close()
 
 	var r map[string]interface{}
 	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-		result <- FilterResult{Type: "IP", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "decode error", Field: "ip", Value: ip}
 		return
 	}
 
@@ -93,17 +96,17 @@ func filterIP(ctx context.Context, ip string, result chan FilterResult) {
 			status := source["status"].(string)
 
 			if status == "denied" {
-				result <- FilterResult{Type: "IP", Status: "denied"}
+				result <- FilterResult{Result: "denied", Reason: "ip denied", Field: "ip", Value: ip}
 			} else if status == "whitelisted" {
-				result <- FilterResult{Type: "IP", Status: "whitelisted"}
+				result <- FilterResult{Result: "whitelisted", Reason: "ip whitelisted", Field: "ip", Value: ip}
 			} else {
-				result <- FilterResult{Type: "IP", Status: "allowed"}
+				result <- FilterResult{Result: "allowed", Field: "ip", Value: ip}
 			}
 		} else {
-			result <- FilterResult{Type: "IP", Status: "allowed"}
+			result <- FilterResult{Result: "allowed", Field: "ip", Value: ip}
 		}
 	} else {
-		result <- FilterResult{Type: "IP", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "no hits", Field: "ip", Value: ip}
 	}
 }
 
@@ -125,14 +128,14 @@ func filterEmail(ctx context.Context, email string, result chan FilterResult) {
 
 	res, err := req.Do(ctx, es)
 	if err != nil {
-		result <- FilterResult{Type: "Email", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "elasticsearch error", Field: "email", Value: email}
 		return
 	}
 	defer res.Body.Close()
 
 	var r map[string]interface{}
 	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-		result <- FilterResult{Type: "Email", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "decode error", Field: "email", Value: email}
 		return
 	}
 
@@ -144,17 +147,17 @@ func filterEmail(ctx context.Context, email string, result chan FilterResult) {
 			status := source["status"].(string)
 
 			if status == "denied" {
-				result <- FilterResult{Type: "Email", Status: "denied"}
+				result <- FilterResult{Result: "denied", Reason: "email denied", Field: "email", Value: email}
 			} else if status == "whitelisted" {
-				result <- FilterResult{Type: "Email", Status: "whitelisted"}
+				result <- FilterResult{Result: "whitelisted", Reason: "email whitelisted", Field: "email", Value: email}
 			} else {
-				result <- FilterResult{Type: "Email", Status: "allowed"}
+				result <- FilterResult{Result: "allowed", Field: "email", Value: email}
 			}
 		} else {
-			result <- FilterResult{Type: "Email", Status: "allowed"}
+			result <- FilterResult{Result: "allowed", Field: "email", Value: email}
 		}
 	} else {
-		result <- FilterResult{Type: "Email", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "no hits", Field: "email", Value: email}
 	}
 }
 
@@ -176,14 +179,14 @@ func filterUserAgent(ctx context.Context, userAgent string, result chan FilterRe
 
 	res, err := req.Do(ctx, es)
 	if err != nil {
-		result <- FilterResult{Type: "UserAgent", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "elasticsearch error", Field: "user_agent", Value: userAgent}
 		return
 	}
 	defer res.Body.Close()
 
 	var r map[string]interface{}
 	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-		result <- FilterResult{Type: "UserAgent", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "decode error", Field: "user_agent", Value: userAgent}
 		return
 	}
 
@@ -195,17 +198,17 @@ func filterUserAgent(ctx context.Context, userAgent string, result chan FilterRe
 			status := source["status"].(string)
 
 			if status == "denied" {
-				result <- FilterResult{Type: "UserAgent", Status: "denied"}
+				result <- FilterResult{Result: "denied", Reason: "user_agent denied", Field: "user_agent", Value: userAgent}
 			} else if status == "whitelisted" {
-				result <- FilterResult{Type: "UserAgent", Status: "whitelisted"}
+				result <- FilterResult{Result: "whitelisted", Reason: "user_agent whitelisted", Field: "user_agent", Value: userAgent}
 			} else {
-				result <- FilterResult{Type: "UserAgent", Status: "allowed"}
+				result <- FilterResult{Result: "allowed", Field: "user_agent", Value: userAgent}
 			}
 		} else {
-			result <- FilterResult{Type: "UserAgent", Status: "allowed"}
+			result <- FilterResult{Result: "allowed", Field: "user_agent", Value: userAgent}
 		}
 	} else {
-		result <- FilterResult{Type: "UserAgent", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "no hits", Field: "user_agent", Value: userAgent}
 	}
 }
 
@@ -227,14 +230,14 @@ func filterCountry(ctx context.Context, country string, result chan FilterResult
 
 	res, err := req.Do(ctx, es)
 	if err != nil {
-		result <- FilterResult{Type: "Country", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "elasticsearch error", Field: "country", Value: country}
 		return
 	}
 	defer res.Body.Close()
 
 	var r map[string]interface{}
 	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-		result <- FilterResult{Type: "Country", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "decode error", Field: "country", Value: country}
 		return
 	}
 
@@ -246,17 +249,17 @@ func filterCountry(ctx context.Context, country string, result chan FilterResult
 			status := source["status"].(string)
 
 			if status == "denied" {
-				result <- FilterResult{Type: "Country", Status: "denied"}
+				result <- FilterResult{Result: "denied", Reason: "country denied", Field: "country", Value: country}
 			} else if status == "whitelisted" {
-				result <- FilterResult{Type: "Country", Status: "whitelisted"}
+				result <- FilterResult{Result: "whitelisted", Reason: "country whitelisted", Field: "country", Value: country}
 			} else {
-				result <- FilterResult{Type: "Country", Status: "allowed"}
+				result <- FilterResult{Result: "allowed", Field: "country", Value: country}
 			}
 		} else {
-			result <- FilterResult{Type: "Country", Status: "allowed"}
+			result <- FilterResult{Result: "allowed", Field: "country", Value: country}
 		}
 	} else {
-		result <- FilterResult{Type: "Country", Status: "error"}
+		result <- FilterResult{Result: "error", Reason: "no hits", Field: "country", Value: country}
 	}
 }
 
