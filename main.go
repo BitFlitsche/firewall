@@ -13,6 +13,8 @@ import (
 
 	_ "firewall/docs" // Swagger-Dokumentation
 
+	"firewall/controllers"
+
 	"github.com/gin-gonic/gin"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -47,10 +49,23 @@ func main() {
 
 	// Set up Gin and routes
 	r := gin.Default()
+	r.Use(controllers.MetricsMiddleware())
 	routes.SetupRoutes(r)
 
+	// Serve React build static files
+	r.Static("/static", "./firewall-app/build/static")
+	r.StaticFile("/favicon.ico", "./firewall-app/build/favicon.ico")
+	r.StaticFile("/manifest.json", "./firewall-app/build/manifest.json")
+
+	// Fallback: serve index.html for all other routes (client-side routing)
+	r.NoRoute(func(c *gin.Context) {
+		c.File("./firewall-app/build/index.html")
+	})
+
 	// Swagger-UI Route
-	r.GET("/swagger/*any", gin.WrapH(httpSwagger.Handler()))
+	r.GET("/swagger/*any", gin.WrapH(httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	)))
 	// Die Swagger-UI ist jetzt erreichbar unter: http://localhost:8081/swagger/index.html
 
 	// Set up graceful shutdown

@@ -111,4 +111,6 @@ func SetupRoutes(r *gin.Engine) {
 			"last_sync":       time.Now().Format(time.RFC3339),
 		})
 	})
+
+	r.GET("/system-stats", controllers.SystemStatsHandler(db))
 }

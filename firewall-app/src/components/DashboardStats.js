@@ -21,6 +21,7 @@ import {
   Flag as FlagIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import SystemStats from './SystemStats';
 
 const statusLabels = ['allowed', 'denied', 'whitelisted'];
 
@@ -117,7 +118,8 @@ const DashboardStats = () => {
 
   return (
     <Box sx={{ maxWidth: 900, mx: 'auto', mt: 4 }}>
-      <Paper sx={{ p: 3 }} elevation={3}>
+      <SystemStats />
+      <Paper sx={{ p: 3, mt: 3 }} elevation={3}>
         <Typography variant="h5" gutterBottom>
           Filter Statistics
         </Typography>

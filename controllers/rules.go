@@ -6,10 +6,70 @@ import (
 	"firewall/services"
 	"fmt"
 	"net/http"
+	"os"
+	"runtime"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/disk"
+	"github.com/shirou/gopsutil/v3/mem"
 	"gorm.io/gorm"
 )
+
+var appStartTime = time.Now()
+var requestCount int64
+var errorCount int64
+
+// Middleware zum Zählen von Requests/Errors
+func MetricsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestCount++
+		c.Next()
+		if c.Writer.Status() >= 400 {
+			errorCount++
+		}
+	}
+}
+
+// SystemStats liefert System- und App-Metriken
+func SystemStatsHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uptime := time.Since(appStartTime).Seconds()
+		cpuPercent, _ := cpu.Percent(0, false)
+		memStats, _ := mem.VirtualMemory()
+		diskStats, _ := disk.Usage("/")
+		pid := os.Getpid()
+		var dbConns int64
+		db.Raw("SHOW STATUS WHERE variable_name = 'Threads_connected'").Scan(&dbConns)
+
+		// DB Health
+		dbHealth := "ok"
+		if err := db.Exec("SELECT 1").Error; err != nil {
+			dbHealth = "error"
+		}
+		// ES Health (Dummy, implementiere falls ES-Client verfügbar)
+		esHealth := "unknown"
+
+		c.JSON(200, gin.H{
+			"uptime":         uptime,
+			"cpu_percent":    cpuPercent,
+			"memory_used":    memStats.Used,
+			"memory_total":   memStats.Total,
+			"memory_percent": memStats.UsedPercent,
+			"disk_used":      diskStats.Used,
+			"disk_total":     diskStats.Total,
+			"disk_percent":   diskStats.UsedPercent,
+			"db_health":      dbHealth,
+			"db_connections": dbConns,
+			"es_health":      esHealth,
+			"request_count":  requestCount,
+			"error_count":    errorCount,
+			"go_routines":    runtime.NumGoroutine(),
+			"pid":            pid,
+		})
+	}
+}
 
 // CreateIPAddress fügt eine neue IP-Adresse hinzu
 // @Summary      Neue IP-Adresse anlegen
@@ -195,26 +255,29 @@ func GetEmails(db *gorm.DB) gin.HandlerFunc {
 			limitNum = 10
 		}
 
-		dbQuery := db.Model(&models.Email{})
+		baseQuery := db.Model(&models.Email{})
 		if status != "" {
-			dbQuery = dbQuery.Where("status = ?", status)
+			baseQuery = baseQuery.Where("status = ?", status)
 		}
 		if search != "" {
-			dbQuery = dbQuery.Where("address LIKE ?", "%"+search+"%")
+			baseQuery = baseQuery.Where("address LIKE ?", "%"+search+"%")
 		}
 
-		dbQuery.Count(&total)
+		// Count-Query (ohne Limit/Offset/Order)
+		countQuery := baseQuery.Session(&gorm.Session{})
+		countQuery.Count(&total)
 
+		// Items-Query (mit Limit/Offset/Order)
+		itemQuery := baseQuery.Session(&gorm.Session{})
 		if orderBy != "ID" && orderBy != "Address" && orderBy != "Status" {
 			orderBy = "ID"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
-
-		dbQuery = dbQuery.Order(orderBy + " " + order)
-		dbQuery = dbQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
-		dbQuery.Find(&emails)
+		itemQuery = itemQuery.Order(orderBy + " " + order)
+		itemQuery = itemQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
+		itemQuery.Find(&emails)
 
 		c.JSON(http.StatusOK, gin.H{
 			"items": emails,
@@ -308,26 +371,29 @@ func GetUserAgents(db *gorm.DB) gin.HandlerFunc {
 			limitNum = 10
 		}
 
-		dbQuery := db.Model(&models.UserAgent{})
+		baseQuery := db.Model(&models.UserAgent{})
 		if status != "" {
-			dbQuery = dbQuery.Where("status = ?", status)
+			baseQuery = baseQuery.Where("status = ?", status)
 		}
 		if search != "" {
-			dbQuery = dbQuery.Where("user_agent LIKE ?", "%"+search+"%")
+			baseQuery = baseQuery.Where("user_agent LIKE ?", "%"+search+"%")
 		}
 
-		dbQuery.Count(&total)
+		// Count-Query (ohne Limit/Offset/Order)
+		countQuery := baseQuery.Session(&gorm.Session{})
+		countQuery.Count(&total)
 
+		// Items-Query (mit Limit/Offset/Order)
+		itemQuery := baseQuery.Session(&gorm.Session{})
 		if orderBy != "ID" && orderBy != "UserAgent" && orderBy != "Status" {
 			orderBy = "ID"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
-
-		dbQuery = dbQuery.Order(orderBy + " " + order)
-		dbQuery = dbQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
-		dbQuery.Find(&userAgents)
+		itemQuery = itemQuery.Order(orderBy + " " + order)
+		itemQuery = itemQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
+		itemQuery.Find(&userAgents)
 
 		c.JSON(http.StatusOK, gin.H{
 			"items": userAgents,
@@ -421,26 +487,29 @@ func GetCountries(db *gorm.DB) gin.HandlerFunc {
 			limitNum = 10
 		}
 
-		dbQuery := db.Model(&models.Country{})
+		baseQuery := db.Model(&models.Country{})
 		if status != "" {
-			dbQuery = dbQuery.Where("status = ?", status)
+			baseQuery = baseQuery.Where("status = ?", status)
 		}
 		if search != "" {
-			dbQuery = dbQuery.Where("code LIKE ?", "%"+search+"%")
+			baseQuery = baseQuery.Where("code LIKE ?", "%"+search+"%")
 		}
 
-		dbQuery.Count(&total)
+		// Count-Query (ohne Limit/Offset/Order)
+		countQuery := baseQuery.Session(&gorm.Session{})
+		countQuery.Count(&total)
 
+		// Items-Query (mit Limit/Offset/Order)
+		itemQuery := baseQuery.Session(&gorm.Session{})
 		if orderBy != "ID" && orderBy != "Code" && orderBy != "Status" {
 			orderBy = "ID"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
-
-		dbQuery = dbQuery.Order(orderBy + " " + order)
-		dbQuery = dbQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
-		dbQuery.Find(&countries)
+		itemQuery = itemQuery.Order(orderBy + " " + order)
+		itemQuery = itemQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
+		itemQuery.Find(&countries)
 
 		c.JSON(http.StatusOK, gin.H{
 			"items": countries,

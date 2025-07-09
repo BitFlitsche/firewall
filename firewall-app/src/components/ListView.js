@@ -41,6 +41,14 @@ const getValueHeader = (endpoint) => {
   return 'Value';
 };
 
+const getStatsEndpoint = (endpoint) => {
+  if (endpoint === '/ips') return '/ips/stats';
+  if (endpoint === '/emails') return '/emails/stats';
+  if (endpoint === '/user-agents') return '/user-agents/stats';
+  if (endpoint === '/countries') return '/countries/stats';
+  return null;
+};
+
 const ListView = ({ endpoint, title, refresh }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +60,7 @@ const ListView = ({ endpoint, title, refresh }) => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const location = useLocation();
+  const [globalStatusCounts, setGlobalStatusCounts] = useState({ allowed: 0, denied: 0, whitelisted: 0, total: 0 });
 
   // Set initial filterStatus from query param
   useEffect(() => {
@@ -62,16 +71,32 @@ const ListView = ({ endpoint, title, refresh }) => {
     }
   }, [location.search]);
 
+  // Lade globale Status-Counts
+  useEffect(() => {
+    const statsEndpoint = getStatsEndpoint(endpoint);
+    if (!statsEndpoint) return;
+    axiosInstance.get(statsEndpoint)
+      .then(res => {
+        setGlobalStatusCounts({
+          allowed: res.data.allowed || 0,
+          denied: res.data.denied || 0,
+          whitelisted: res.data.whitelisted || 0,
+          total: res.data.total || 0,
+        });
+      })
+      .catch(() => setGlobalStatusCounts({ allowed: 0, denied: 0, whitelisted: 0, total: 0 }));
+  }, [endpoint, refresh]);
+
   const valueField = getValueField(endpoint);
   const valueHeader = getValueHeader(endpoint);
 
-  // Serverseitige Daten für /ips
+  // Serverseitige Daten für /ips, /emails, /user-agents, /countries
   useEffect(() => {
     const fetchItems = async () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await axiosInstance.get(endpoint, endpoint === '/ips' ? {
+        const response = await axiosInstance.get(endpoint, (endpoint === '/ips' || endpoint === '/emails' || endpoint === '/user-agents' || endpoint === '/countries') ? {
           params: {
             page: page + 1,
             limit: rowsPerPage,
@@ -81,7 +106,6 @@ const ListView = ({ endpoint, title, refresh }) => {
             order,
           }
         } : undefined);
-        // Universell: items/total oder fallback auf Array
         if (response.data && Array.isArray(response.data)) {
           setItems(response.data);
           setTotal(response.data.length);
@@ -102,22 +126,18 @@ const ListView = ({ endpoint, title, refresh }) => {
     // eslint-disable-next-line
   }, [endpoint, refresh, page, rowsPerPage, filterStatus, filterValue, orderBy, order]);
 
-  // Immer initialisieren, um Fehler zu vermeiden
-  let filteredItems = items;
-  if (endpoint !== '/ips') {
-    filteredItems = items.filter((item) => {
+  // Für Endpunkte mit serverseitiger Pagination keinerlei clientseitige Filterung/Sortierung/Slicing
+  let paginatedItems = items;
+  let sortedItems = items; // immer definiert
+  if (!(endpoint === '/ips' || endpoint === '/emails' || endpoint === '/user-agents' || endpoint === '/countries')) {
+    // Legacy/sonstige Endpunkte: clientseitige Filterung/Sortierung/Slicing
+    let filteredItems = items.filter((item) => {
       const value = (item[valueField] || '').toLowerCase();
       const status = (item.Status || '').toLowerCase();
       const valueMatch = filterValue === '' || value.includes(filterValue.toLowerCase());
       const statusMatch = filterStatus === '' || status === filterStatus;
       return valueMatch && statusMatch;
     });
-  }
-
-  let sortedItems = [];
-  if (endpoint === '/ips') {
-    sortedItems = items;
-  } else {
     sortedItems = [...filteredItems].sort((a, b) => {
       let aValue = a[orderBy];
       let bValue = b[orderBy];
@@ -133,15 +153,14 @@ const ListView = ({ endpoint, title, refresh }) => {
         return 0;
       }
     });
+    paginatedItems = sortedItems.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   }
 
-  // Für /ips keine clientseitige Filterung/Sortierung/Paginierung
-  const paginatedItems = endpoint === '/ips' ? items : sortedItems.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-
-  // Für /ips kommt total vom Server, sonst clientseitig bestimmen
+  // Für /ips, /emails, /user-agents, /countries: total immer aus API übernehmen
   const [total, setTotal] = useState(0);
   useEffect(() => {
-    if (endpoint !== '/ips') {
+    // Nur für Endpunkte ohne serverseitige Pagination (z.B. falls noch legacy)
+    if (endpoint !== '/ips' && endpoint !== '/emails' && endpoint !== '/user-agents' && endpoint !== '/countries') {
       setTotal(sortedItems.length);
     }
     // eslint-disable-next-line
@@ -194,24 +213,24 @@ const ListView = ({ endpoint, title, refresh }) => {
             onChange={(e) => setFilterStatus(e.target.value)}
             displayEmpty
             renderValue={(selected) => {
-              if (!selected) return `All (${totalCount})`;
-              if (selected === 'allowed') return `Allowed (${statusCounts['allowed'] || 0})`;
-              if (selected === 'denied') return `Denied (${statusCounts['denied'] || 0})`;
-              if (selected === 'whitelisted') return `Whitelisted (${statusCounts['whitelisted'] || 0})`;
+              if (!selected) return `All (${globalStatusCounts.total})`;
+              if (selected === 'allowed') return `Allowed (${globalStatusCounts.allowed})`;
+              if (selected === 'denied') return `Denied (${globalStatusCounts.denied})`;
+              if (selected === 'whitelisted') return `Whitelisted (${globalStatusCounts.whitelisted})`;
               return selected;
             }}
           >
             <MenuItem key="" value="">
-              All ({totalCount})
+              All ({globalStatusCounts.total})
             </MenuItem>
             <MenuItem key="allowed" value="allowed">
-              Allowed ({statusCounts['allowed'] || 0})
+              Allowed ({globalStatusCounts.allowed})
             </MenuItem>
             <MenuItem key="denied" value="denied">
-              Denied ({statusCounts['denied'] || 0})
+              Denied ({globalStatusCounts.denied})
             </MenuItem>
             <MenuItem key="whitelisted" value="whitelisted">
-              Whitelisted ({statusCounts['whitelisted'] || 0})
+              Whitelisted ({globalStatusCounts.whitelisted})
             </MenuItem>
           </Select>
         </FormControl>
