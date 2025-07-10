@@ -50,12 +50,14 @@ func SetupRoutes(r *gin.Engine) {
 	r.GET("/charsets", controllers.GetCharsetRules(db))
 	r.PUT("/charset/:id", controllers.UpdateCharsetRule(db))
 	r.DELETE("/charset/:id", controllers.DeleteCharsetRule(db))
+	r.GET("/charsets/stats", controllers.GetCharsetStats(db))
 
 	// UsernameRule CRUD
 	r.POST("/username", controllers.CreateUsernameRule(db))
 	r.GET("/usernames", controllers.GetUsernameRules(db))
 	r.PUT("/username/:id", controllers.UpdateUsernameRule(db))
 	r.DELETE("/username/:id", controllers.DeleteUsernameRule(db))
+	r.GET("/usernames/stats", controllers.GetUsernameStats(db))
 
 	// Filtering route
 	r.POST("/filter", controllers.FilterRequestHandler(db))

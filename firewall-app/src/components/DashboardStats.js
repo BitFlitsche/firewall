@@ -18,7 +18,8 @@ import {
   Public as PublicIcon,
   Email as EmailIcon,
   Person as PersonIcon,
-  Flag as FlagIcon
+  Flag as FlagIcon,
+  Dns as DnsIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 // SystemStats import entfernen
@@ -52,19 +53,37 @@ const FilterStats = ({ stats, error, handleCountClick, getFilterIcon, getStatusC
           <TableRow>
             <TableCell>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {getFilterIcon('IP Addresses')}
-                IP Addresses
+                {getFilterIcon('Charset Rules')}
+                Charset Rules
               </Box>
             </TableCell>
-            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', null)}>{stats.ips.total}</TableCell>
-            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'allowed')}>
-              <Chip label={stats.ips.allowed} color={getStatusColor(stats.ips.allowed)} size="small" />
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('charsets', null)}>{stats.charsets.total}</TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('charsets', 'allowed')}>
+              <Chip label={stats.charsets.allowed} color={getStatusColor(stats.charsets.allowed)} size="small" />
             </TableCell>
-            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'denied')}>
-              <Chip label={stats.ips.denied} color={getStatusColor(stats.ips.denied)} size="small" />
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('charsets', 'denied')}>
+              <Chip label={stats.charsets.denied} color={getStatusColor(stats.charsets.denied)} size="small" />
             </TableCell>
-            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'whitelisted')}>
-              <Chip label={stats.ips.whitelisted} color={getStatusColor(stats.ips.whitelisted)} size="small" />
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('charsets', 'whitelisted')}>
+              <Chip label={stats.charsets.whitelisted} color={getStatusColor(stats.charsets.whitelisted)} size="small" />
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {getFilterIcon('Countries')}
+                Countries
+              </Box>
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', null)}>{stats.countries.total}</TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'allowed')}>
+              <Chip label={stats.countries.allowed} color={getStatusColor(stats.countries.allowed)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'denied')}>
+              <Chip label={stats.countries.denied} color={getStatusColor(stats.countries.denied)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'whitelisted')}>
+              <Chip label={stats.countries.whitelisted} color={getStatusColor(stats.countries.whitelisted)} size="small" />
             </TableCell>
           </TableRow>
           <TableRow>
@@ -88,6 +107,24 @@ const FilterStats = ({ stats, error, handleCountClick, getFilterIcon, getStatusC
           <TableRow>
             <TableCell>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {getFilterIcon('IP Addresses')}
+                IP Addresses
+              </Box>
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', null)}>{stats.ips.total}</TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'allowed')}>
+              <Chip label={stats.ips.allowed} color={getStatusColor(stats.ips.allowed)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'denied')}>
+              <Chip label={stats.ips.denied} color={getStatusColor(stats.ips.denied)} size="small" />
+            </TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('ips', 'whitelisted')}>
+              <Chip label={stats.ips.whitelisted} color={getStatusColor(stats.ips.whitelisted)} size="small" />
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {getFilterIcon('User Agents')}
                 User Agents
               </Box>
@@ -106,19 +143,19 @@ const FilterStats = ({ stats, error, handleCountClick, getFilterIcon, getStatusC
           <TableRow>
             <TableCell>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {getFilterIcon('Countries')}
-                Countries
+                {getFilterIcon('Username Rules')}
+                Username Rules
               </Box>
             </TableCell>
-            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', null)}>{stats.countries.total}</TableCell>
-            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'allowed')}>
-              <Chip label={stats.countries.allowed} color={getStatusColor(stats.countries.allowed)} size="small" />
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('usernames', null)}>{stats.usernames.total}</TableCell>
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('usernames', 'allowed')}>
+              <Chip label={stats.usernames.allowed} color={getStatusColor(stats.usernames.allowed)} size="small" />
             </TableCell>
-            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'denied')}>
-              <Chip label={stats.countries.denied} color={getStatusColor(stats.countries.denied)} size="small" />
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('usernames', 'denied')}>
+              <Chip label={stats.usernames.denied} color={getStatusColor(stats.usernames.denied)} size="small" />
             </TableCell>
-            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('countries', 'whitelisted')}>
-              <Chip label={stats.countries.whitelisted} color={getStatusColor(stats.countries.whitelisted)} size="small" />
+            <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleCountClick('usernames', 'whitelisted')}>
+              <Chip label={stats.usernames.whitelisted} color={getStatusColor(stats.usernames.whitelisted)} size="small" />
             </TableCell>
           </TableRow>
         </TableBody>
@@ -132,7 +169,9 @@ const DashboardStats = () => {
     ips: { total: 0, allowed: 0, denied: 0, whitelisted: 0 },
     emails: { total: 0, allowed: 0, denied: 0, whitelisted: 0 },
     userAgents: { total: 0, allowed: 0, denied: 0, whitelisted: 0 },
-    countries: { total: 0, allowed: 0, denied: 0, whitelisted: 0 }
+    countries: { total: 0, allowed: 0, denied: 0, whitelisted: 0 },
+    charsets: { total: 0, allowed: 0, denied: 0, whitelisted: 0 },
+    usernames: { total: 0, allowed: 0, denied: 0, whitelisted: 0 }
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -153,6 +192,8 @@ const DashboardStats = () => {
     if (type === 'emails') path = '/email-list';
     if (type === 'userAgents') path = '/useragent-list';
     if (type === 'countries') path = '/country-list';
+    if (type === 'charsets') path = '/charset-list';
+    if (type === 'usernames') path = '/username-list';
     const query = status ? `?status=${status}` : '';
     navigate(`${path}${query}`);
   };
@@ -162,19 +203,23 @@ const DashboardStats = () => {
       setLoading(true);
       setError('');
 
-      // Lade nur die Stats-Endpunkte
-      const [ipsRes, emailsRes, userAgentsRes, countriesRes] = await Promise.all([
+      // Lade alle Stats-Endpunkte
+      const [ipsRes, emailsRes, userAgentsRes, countriesRes, charsetsRes, usernamesRes] = await Promise.all([
         axios.get('/ips/stats'),
         axios.get('/emails/stats'),
         axios.get('/user-agents/stats'),
-        axios.get('/countries/stats')
+        axios.get('/countries/stats'),
+        axios.get('/charsets/stats'),
+        axios.get('/usernames/stats')
       ]);
 
       setStats({
         ips: ipsRes.data,
         emails: emailsRes.data,
         userAgents: userAgentsRes.data,
-        countries: countriesRes.data
+        countries: countriesRes.data,
+        charsets: charsetsRes.data,
+        usernames: usernamesRes.data
       });
     } catch (err) {
       setError('Failed to load statistics');
@@ -198,6 +243,10 @@ const DashboardStats = () => {
         return <PersonIcon />;
       case 'Countries':
         return <FlagIcon />;
+      case 'Charset Rules':
+        return <DnsIcon />;
+      case 'Username Rules':
+        return <PersonIcon />;
       default:
         return null;
     }

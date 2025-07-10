@@ -720,3 +720,37 @@ func DeleteUsernameRule(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"message": "Username rule deleted"})
 	}
 }
+
+// Count-Stats für CharsetRules
+func GetCharsetStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var total, allowed, denied, whitelisted int64
+		db.Model(&models.CharsetRule{}).Count(&total)
+		db.Model(&models.CharsetRule{}).Where("status = ?", "allowed").Count(&allowed)
+		db.Model(&models.CharsetRule{}).Where("status = ?", "denied").Count(&denied)
+		db.Model(&models.CharsetRule{}).Where("status = ?", "whitelisted").Count(&whitelisted)
+		c.JSON(http.StatusOK, gin.H{
+			"total":       total,
+			"allowed":     allowed,
+			"denied":      denied,
+			"whitelisted": whitelisted,
+		})
+	}
+}
+
+// Count-Stats für UsernameRules
+func GetUsernameStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var total, allowed, denied, whitelisted int64
+		db.Model(&models.UsernameRule{}).Count(&total)
+		db.Model(&models.UsernameRule{}).Where("status = ?", "allowed").Count(&allowed)
+		db.Model(&models.UsernameRule{}).Where("status = ?", "denied").Count(&denied)
+		db.Model(&models.UsernameRule{}).Where("status = ?", "whitelisted").Count(&whitelisted)
+		c.JSON(http.StatusOK, gin.H{
+			"total":       total,
+			"allowed":     allowed,
+			"denied":      denied,
+			"whitelisted": whitelisted,
+		})
+	}
+}
