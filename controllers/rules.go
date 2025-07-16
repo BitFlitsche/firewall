@@ -221,6 +221,44 @@ func GetIPStats(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// UpdateIPAddress aktualisiert eine IP-Adresse
+func UpdateIPAddress(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ip models.IP
+		id := c.Param("id")
+		if err := db.First(&ip, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "IP address not found"})
+			return
+		}
+		var input models.IP
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		ip.Address = input.Address
+		ip.Status = input.Status
+		if err := db.Save(&ip).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update IP address"})
+			return
+		}
+		services.PublishEvent("ip", "updated", ip)
+		c.JSON(http.StatusOK, ip)
+	}
+}
+
+// DeleteIPAddress löscht eine IP-Adresse
+func DeleteIPAddress(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		if err := db.Delete(&models.IP{}, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete IP address"})
+			return
+		}
+		services.PublishEvent("ip", "deleted", models.IP{ID: parseUint(id)})
+		c.JSON(http.StatusOK, gin.H{"message": "IP address deleted"})
+	}
+}
+
 // CreateEmail fügt eine neue E-Mail hinzu
 // @Summary      Neue E-Mail anlegen
 // @Description  Legt eine neue E-Mail-Adresse mit Status an
@@ -334,6 +372,44 @@ func GetEmailStats(db *gorm.DB) gin.HandlerFunc {
 			"denied":      denied,
 			"whitelisted": whitelisted,
 		})
+	}
+}
+
+// UpdateEmail aktualisiert eine E-Mail-Adresse
+func UpdateEmail(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var email models.Email
+		id := c.Param("id")
+		if err := db.First(&email, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Email not found"})
+			return
+		}
+		var input models.Email
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		email.Address = input.Address
+		email.Status = input.Status
+		if err := db.Save(&email).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update email"})
+			return
+		}
+		services.PublishEvent("email", "updated", email)
+		c.JSON(http.StatusOK, email)
+	}
+}
+
+// DeleteEmail löscht eine E-Mail-Adresse
+func DeleteEmail(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		if err := db.Delete(&models.Email{}, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete email"})
+			return
+		}
+		services.PublishEvent("email", "deleted", models.Email{ID: parseUint(id)})
+		c.JSON(http.StatusOK, gin.H{"message": "Email deleted"})
 	}
 }
 
@@ -453,6 +529,44 @@ func GetUserAgentStats(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// UpdateUserAgent aktualisiert einen User-Agent
+func UpdateUserAgent(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var userAgent models.UserAgent
+		id := c.Param("id")
+		if err := db.First(&userAgent, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User agent not found"})
+			return
+		}
+		var input models.UserAgent
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		userAgent.UserAgent = input.UserAgent
+		userAgent.Status = input.Status
+		if err := db.Save(&userAgent).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user agent"})
+			return
+		}
+		services.PublishEvent("user_agent", "updated", userAgent)
+		c.JSON(http.StatusOK, userAgent)
+	}
+}
+
+// DeleteUserAgent löscht einen User-Agent
+func DeleteUserAgent(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		if err := db.Delete(&models.UserAgent{}, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user agent"})
+			return
+		}
+		services.PublishEvent("user_agent", "deleted", models.UserAgent{ID: parseUint(id)})
+		c.JSON(http.StatusOK, gin.H{"message": "User agent deleted"})
+	}
+}
+
 // CreateCountry fügt ein neues Land hinzu
 // @Summary      Neues Land anlegen
 // @Description  Legt einen neuen Ländercode mit Status an
@@ -569,6 +683,44 @@ func GetCountryStats(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// UpdateCountry aktualisiert ein Land
+func UpdateCountry(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var country models.Country
+		id := c.Param("id")
+		if err := db.First(&country, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Country not found"})
+			return
+		}
+		var input models.Country
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		country.Code = input.Code
+		country.Status = input.Status
+		if err := db.Save(&country).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update country"})
+			return
+		}
+		services.PublishEvent("country", "updated", country)
+		c.JSON(http.StatusOK, country)
+	}
+}
+
+// DeleteCountry löscht ein Land
+func DeleteCountry(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		if err := db.Delete(&models.Country{}, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete country"})
+			return
+		}
+		services.PublishEvent("country", "deleted", models.Country{ID: parseUint(id)})
+		c.JSON(http.StatusOK, gin.H{"message": "Country deleted"})
+	}
+}
+
 // CreateCharsetRule fügt eine neue Charset-Regel hinzu
 func CreateCharsetRule(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -587,12 +739,70 @@ func CreateCharsetRule(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-// GetCharsetRules listet alle Charset-Regeln
+// GetCharsetRules listet alle Charset-Regeln mit Paginierung, Filterung und Sortierung
+// @Summary      Charset-Regeln auflisten
+// @Description  Gibt paginierte, gefilterte und sortierte Charset-Regeln zurück
+// @Tags         charset
+// @Produce      json
+// @Param        page     query     int     false  "Seite (beginnend bei 1)"
+// @Param        limit    query     int     false  "Einträge pro Seite"
+// @Param        status   query     string  false  "Status-Filter (allowed, denied, whitelisted)"
+// @Param        search   query     string  false  "Suche nach Charset"
+// @Param        orderBy  query     string  false  "Sortierfeld (ID, Charset, Status)"
+// @Param        order    query     string  false  "asc oder desc"
+// @Success      200 {object} map[string]interface{}
+// @Router       /charsets [get]
 func GetCharsetRules(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var rules []models.CharsetRule
-		db.Find(&rules)
-		c.JSON(http.StatusOK, rules)
+		var total int64
+
+		page := c.DefaultQuery("page", "1")
+		limit := c.DefaultQuery("limit", "10")
+		status := c.Query("status")
+		search := c.Query("search")
+		orderBy := c.DefaultQuery("orderBy", "ID")
+		order := c.DefaultQuery("order", "desc")
+
+		pageNum := 1
+		limitNum := 10
+		fmt.Sscanf(page, "%d", &pageNum)
+		fmt.Sscanf(limit, "%d", &limitNum)
+		if pageNum < 1 {
+			pageNum = 1
+		}
+		if limitNum < 1 {
+			limitNum = 10
+		}
+
+		baseQuery := db.Model(&models.CharsetRule{})
+		if status != "" {
+			baseQuery = baseQuery.Where("status = ?", status)
+		}
+		if search != "" {
+			baseQuery = baseQuery.Where("charset LIKE ?", "%"+search+"%")
+		}
+
+		// Count-Query (ohne Limit/Offset/Order)
+		countQuery := baseQuery.Session(&gorm.Session{})
+		countQuery.Count(&total)
+
+		// Items-Query (mit Limit/Offset/Order)
+		itemQuery := baseQuery.Session(&gorm.Session{})
+		if orderBy != "ID" && orderBy != "Charset" && orderBy != "Status" {
+			orderBy = "ID"
+		}
+		if order != "asc" && order != "desc" {
+			order = "desc"
+		}
+		itemQuery = itemQuery.Order(orderBy + " " + order)
+		itemQuery = itemQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
+		itemQuery.Find(&rules)
+
+		c.JSON(http.StatusOK, gin.H{
+			"items": rules,
+			"total": total,
+		})
 	}
 }
 
@@ -672,12 +882,70 @@ func CreateUsernameRule(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-// GetUsernameRules listet alle Username-Regeln
+// GetUsernameRules listet alle Username-Regeln mit Paginierung, Filterung und Sortierung
+// @Summary      Username-Regeln auflisten
+// @Description  Gibt paginierte, gefilterte und sortierte Username-Regeln zurück
+// @Tags         username
+// @Produce      json
+// @Param        page     query     int     false  "Seite (beginnend bei 1)"
+// @Param        limit    query     int     false  "Einträge pro Seite"
+// @Param        status   query     string  false  "Status-Filter (allowed, denied, whitelisted)"
+// @Param        search   query     string  false  "Suche nach Username"
+// @Param        orderBy  query     string  false  "Sortierfeld (ID, Username, Status)"
+// @Param        order    query     string  false  "asc oder desc"
+// @Success      200 {object} map[string]interface{}
+// @Router       /usernames [get]
 func GetUsernameRules(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var rules []models.UsernameRule
-		db.Find(&rules)
-		c.JSON(http.StatusOK, rules)
+		var total int64
+
+		page := c.DefaultQuery("page", "1")
+		limit := c.DefaultQuery("limit", "10")
+		status := c.Query("status")
+		search := c.Query("search")
+		orderBy := c.DefaultQuery("orderBy", "ID")
+		order := c.DefaultQuery("order", "desc")
+
+		pageNum := 1
+		limitNum := 10
+		fmt.Sscanf(page, "%d", &pageNum)
+		fmt.Sscanf(limit, "%d", &limitNum)
+		if pageNum < 1 {
+			pageNum = 1
+		}
+		if limitNum < 1 {
+			limitNum = 10
+		}
+
+		baseQuery := db.Model(&models.UsernameRule{})
+		if status != "" {
+			baseQuery = baseQuery.Where("status = ?", status)
+		}
+		if search != "" {
+			baseQuery = baseQuery.Where("username LIKE ?", "%"+search+"%")
+		}
+
+		// Count-Query (ohne Limit/Offset/Order)
+		countQuery := baseQuery.Session(&gorm.Session{})
+		countQuery.Count(&total)
+
+		// Items-Query (mit Limit/Offset/Order)
+		itemQuery := baseQuery.Session(&gorm.Session{})
+		if orderBy != "ID" && orderBy != "Username" && orderBy != "Status" {
+			orderBy = "ID"
+		}
+		if order != "asc" && order != "desc" {
+			order = "desc"
+		}
+		itemQuery = itemQuery.Order(orderBy + " " + order)
+		itemQuery = itemQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
+		itemQuery.Find(&rules)
+
+		c.JSON(http.StatusOK, gin.H{
+			"items": rules,
+			"total": total,
+		})
 	}
 }
 

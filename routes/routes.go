@@ -28,21 +28,29 @@ func SetupRoutes(r *gin.Engine) {
 	// CRUD routes for IPs
 	r.POST("/ip", controllers.CreateIPAddress(db))
 	r.GET("/ips", controllers.GetIPAddresses(db))
+	r.PUT("/ip/:id", controllers.UpdateIPAddress(db))
+	r.DELETE("/ip/:id", controllers.DeleteIPAddress(db))
 	r.GET("/ips/stats", controllers.GetIPStats(db))
 
 	// CRUD routes for Emails
 	r.POST("/email", controllers.CreateEmail(db))
 	r.GET("/emails", controllers.GetEmails(db))
+	r.PUT("/email/:id", controllers.UpdateEmail(db))
+	r.DELETE("/email/:id", controllers.DeleteEmail(db))
 	r.GET("/emails/stats", controllers.GetEmailStats(db))
 
 	// CRUD routes for User Agents
 	r.POST("/user-agent", controllers.CreateUserAgent(db))
 	r.GET("/user-agents", controllers.GetUserAgents(db))
+	r.PUT("/user-agent/:id", controllers.UpdateUserAgent(db))
+	r.DELETE("/user-agent/:id", controllers.DeleteUserAgent(db))
 	r.GET("/user-agents/stats", controllers.GetUserAgentStats(db))
 
 	// CRUD routes for Countries
 	r.POST("/country", controllers.CreateCountry(db))
 	r.GET("/countries", controllers.GetCountries(db))
+	r.PUT("/country/:id", controllers.UpdateCountry(db))
+	r.DELETE("/country/:id", controllers.DeleteCountry(db))
 	r.GET("/countries/stats", controllers.GetCountryStats(db))
 
 	// CharsetRule CRUD
