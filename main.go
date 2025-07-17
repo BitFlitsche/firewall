@@ -6,6 +6,7 @@ import (
 	"firewall/migrations"
 	"firewall/routes"
 	"firewall/services"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -20,6 +21,9 @@ import (
 )
 
 func main() {
+	// Initialize configuration
+	config.InitConfig()
+
 	// Initialize MySQL and Elasticsearch
 	config.InitMySQL()
 	// Run migrations
@@ -79,8 +83,9 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		log.Println("Starting server on :8081")
-		if err := r.Run(":8081"); err != nil {
+		serverAddr := fmt.Sprintf("%s:%d", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
+		log.Printf("Starting server on %s", serverAddr)
+		if err := r.Run(serverAddr); err != nil {
 			log.Printf("Server error: %v", err)
 		}
 	}()

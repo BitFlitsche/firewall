@@ -77,9 +77,28 @@ const SystemStats = () => {
               <Tooltip title="Database Health">
                 <Chip label={`DB: ${stats.db_health}`} color={stats.db_health === 'ok' ? 'success' : 'error'} sx={{ width: '100%', mb: 1 }} />
               </Tooltip>
-              <Tooltip title="DB Connections">
-                <Chip label={`DB Conns: ${stats.db_connections}`} color="info" sx={{ width: '100%' }} />
-              </Tooltip>
+              {stats.db_connections && typeof stats.db_connections === 'object' ? (
+                <>
+                  <Tooltip title={`Open: ${stats.db_connections.open_connections || 0}, In Use: ${stats.db_connections.in_use || 0}, Idle: ${stats.db_connections.idle || 0}`}>
+                    <Chip 
+                      label={`DB Conns: ${stats.db_connections.open_connections || 0}/${stats.db_connections.max_open_connections || 0}`} 
+                      color="info" 
+                      sx={{ width: '100%', mb: 1 }} 
+                    />
+                  </Tooltip>
+                  <Tooltip title={`In Use: ${stats.db_connections.in_use || 0}, Idle: ${stats.db_connections.idle || 0}`}>
+                    <Chip 
+                      label={`Active: ${stats.db_connections.in_use || 0}`} 
+                      color="secondary" 
+                      sx={{ width: '100%' }} 
+                    />
+                  </Tooltip>
+                </>
+              ) : (
+                <Tooltip title="DB Connections">
+                  <Chip label={`DB Conns: ${stats.db_connections || 0}`} color="info" sx={{ width: '100%' }} />
+                </Tooltip>
+              )}
             </Box>
           </Paper>
         </Grid>

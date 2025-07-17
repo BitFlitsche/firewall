@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"context"
@@ -45,23 +46,16 @@ func SystemStatsHandler(db *gorm.DB) gin.HandlerFunc {
 		memStats, _ := mem.VirtualMemory()
 		diskStats, _ := disk.Usage("/")
 		pid := os.Getpid()
-		// DB Connections korrekt auslesen
-		var dbConns int64
-		var threadsRow struct {
-			VariableName string
-			Value        string
-		}
-		if err := db.Raw("SHOW STATUS WHERE variable_name = 'Threads_connected'").Scan(&threadsRow).Error; err == nil {
-			if v, err := strconv.ParseInt(threadsRow.Value, 10, 64); err == nil {
-				dbConns = v
-			}
-		}
+
+		// Get database connection statistics using the new config function
+		dbStats := config.GetDBStats()
 
 		// DB Health
 		dbHealth := "ok"
 		if err := db.Exec("SELECT 1").Error; err != nil {
 			dbHealth = "error"
 		}
+
 		// ES Health
 		esHealth := "unknown"
 		if config.ESClient != nil {
@@ -95,7 +89,7 @@ func SystemStatsHandler(db *gorm.DB) gin.HandlerFunc {
 			"disk_total":     diskStats.Total,
 			"disk_percent":   diskStats.UsedPercent,
 			"db_health":      dbHealth,
-			"db_connections": dbConns,
+			"db_connections": dbStats,
 			"es_health":      esHealth,
 			"request_count":  requestCount,
 			"error_count":    errorCount,
@@ -153,9 +147,6 @@ func CreateIPAddress(db *gorm.DB) gin.HandlerFunc {
 // @Router       /ips [get]
 func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ips []models.IP
-		var total int64
-
 		// Query-Parameter
 		page := c.DefaultQuery("page", "1")
 		limit := c.DefaultQuery("limit", "10")
@@ -176,16 +167,26 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 			limitNum = 10
 		}
 
-		dbQuery := db.Model(&models.IP{})
+		// Build WHERE conditions
+		var conditions []string
+		var args []interface{}
+
 		if status != "" {
-			dbQuery = dbQuery.Where("status = ?", status)
+			conditions = append(conditions, "status = ?")
+			args = append(args, status)
 		}
 		if search != "" {
-			dbQuery = dbQuery.Where("address LIKE ?", "%"+search+"%")
+			conditions = append(conditions, "address LIKE ?")
+			args = append(args, "%"+search+"%")
 		}
 
-		dbQuery.Count(&total)
+		// Build WHERE clause
+		whereClause := ""
+		if len(conditions) > 0 {
+			whereClause = "WHERE " + strings.Join(conditions, " AND ")
+		}
 
+		// Validate orderBy and order
 		if orderBy != "ID" && orderBy != "Address" && orderBy != "Status" {
 			orderBy = "ID"
 		}
@@ -193,9 +194,38 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 			order = "desc"
 		}
 
-		dbQuery = dbQuery.Order(orderBy + " " + order)
-		dbQuery = dbQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
-		dbQuery.Find(&ips)
+		// Use COUNT(*) OVER() for single query optimization
+		query := fmt.Sprintf(`
+			SELECT *, COUNT(*) OVER() as total_count 
+			FROM i_ps 
+			%s 
+			ORDER BY %s %s 
+			LIMIT ? OFFSET ?
+		`, whereClause, orderBy, order)
+
+		// Add pagination parameters
+		args = append(args, limitNum, (pageNum-1)*limitNum)
+
+		// Execute query
+		var results []struct {
+			models.IP
+			TotalCount int64 `json:"total_count"`
+		}
+
+		if err := db.Raw(query, args...).Scan(&results).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch IP addresses"})
+			return
+		}
+
+		// Extract data
+		var ips []models.IP
+		var total int64
+		if len(results) > 0 {
+			total = results[0].TotalCount
+			for _, result := range results {
+				ips = append(ips, result.IP)
+			}
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"items": ips,
@@ -306,9 +336,6 @@ func CreateEmail(db *gorm.DB) gin.HandlerFunc {
 // @Router       /emails [get]
 func GetEmails(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var emails []models.Email
-		var total int64
-
 		page := c.DefaultQuery("page", "1")
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
@@ -327,29 +354,65 @@ func GetEmails(db *gorm.DB) gin.HandlerFunc {
 			limitNum = 10
 		}
 
-		baseQuery := db.Model(&models.Email{})
+		// Build WHERE conditions
+		var conditions []string
+		var args []interface{}
+
 		if status != "" {
-			baseQuery = baseQuery.Where("status = ?", status)
+			conditions = append(conditions, "status = ?")
+			args = append(args, status)
 		}
 		if search != "" {
-			baseQuery = baseQuery.Where("address LIKE ?", "%"+search+"%")
+			conditions = append(conditions, "address LIKE ?")
+			args = append(args, "%"+search+"%")
 		}
 
-		// Count-Query (ohne Limit/Offset/Order)
-		countQuery := baseQuery.Session(&gorm.Session{})
-		countQuery.Count(&total)
+		// Build WHERE clause
+		whereClause := ""
+		if len(conditions) > 0 {
+			whereClause = "WHERE " + strings.Join(conditions, " AND ")
+		}
 
-		// Items-Query (mit Limit/Offset/Order)
-		itemQuery := baseQuery.Session(&gorm.Session{})
+		// Validate orderBy and order
 		if orderBy != "ID" && orderBy != "Address" && orderBy != "Status" {
 			orderBy = "ID"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
-		itemQuery = itemQuery.Order(orderBy + " " + order)
-		itemQuery = itemQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
-		itemQuery.Find(&emails)
+
+		// Use COUNT(*) OVER() for single query optimization
+		query := fmt.Sprintf(`
+			SELECT *, COUNT(*) OVER() as total_count 
+			FROM emails 
+			%s 
+			ORDER BY %s %s 
+			LIMIT ? OFFSET ?
+		`, whereClause, orderBy, order)
+
+		// Add pagination parameters
+		args = append(args, limitNum, (pageNum-1)*limitNum)
+
+		// Execute query
+		var results []struct {
+			models.Email
+			TotalCount int64 `json:"total_count"`
+		}
+
+		if err := db.Raw(query, args...).Scan(&results).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch emails"})
+			return
+		}
+
+		// Extract data
+		var emails []models.Email
+		var total int64
+		if len(results) > 0 {
+			total = results[0].TotalCount
+			for _, result := range results {
+				emails = append(emails, result.Email)
+			}
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"items": emails,
@@ -460,9 +523,6 @@ func CreateUserAgent(db *gorm.DB) gin.HandlerFunc {
 // @Router       /user-agents [get]
 func GetUserAgents(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var userAgents []models.UserAgent
-		var total int64
-
 		page := c.DefaultQuery("page", "1")
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
@@ -481,29 +541,65 @@ func GetUserAgents(db *gorm.DB) gin.HandlerFunc {
 			limitNum = 10
 		}
 
-		baseQuery := db.Model(&models.UserAgent{})
+		// Build WHERE conditions
+		var conditions []string
+		var args []interface{}
+
 		if status != "" {
-			baseQuery = baseQuery.Where("status = ?", status)
+			conditions = append(conditions, "status = ?")
+			args = append(args, status)
 		}
 		if search != "" {
-			baseQuery = baseQuery.Where("user_agent LIKE ?", "%"+search+"%")
+			conditions = append(conditions, "user_agent LIKE ?")
+			args = append(args, "%"+search+"%")
 		}
 
-		// Count-Query (ohne Limit/Offset/Order)
-		countQuery := baseQuery.Session(&gorm.Session{})
-		countQuery.Count(&total)
+		// Build WHERE clause
+		whereClause := ""
+		if len(conditions) > 0 {
+			whereClause = "WHERE " + strings.Join(conditions, " AND ")
+		}
 
-		// Items-Query (mit Limit/Offset/Order)
-		itemQuery := baseQuery.Session(&gorm.Session{})
+		// Validate orderBy and order
 		if orderBy != "ID" && orderBy != "UserAgent" && orderBy != "Status" {
 			orderBy = "ID"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
-		itemQuery = itemQuery.Order(orderBy + " " + order)
-		itemQuery = itemQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
-		itemQuery.Find(&userAgents)
+
+		// Use COUNT(*) OVER() for single query optimization
+		query := fmt.Sprintf(`
+			SELECT *, COUNT(*) OVER() as total_count 
+			FROM user_agents 
+			%s 
+			ORDER BY %s %s 
+			LIMIT ? OFFSET ?
+		`, whereClause, orderBy, order)
+
+		// Add pagination parameters
+		args = append(args, limitNum, (pageNum-1)*limitNum)
+
+		// Execute query
+		var results []struct {
+			models.UserAgent
+			TotalCount int64 `json:"total_count"`
+		}
+
+		if err := db.Raw(query, args...).Scan(&results).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user agents"})
+			return
+		}
+
+		// Extract data
+		var userAgents []models.UserAgent
+		var total int64
+		if len(results) > 0 {
+			total = results[0].TotalCount
+			for _, result := range results {
+				userAgents = append(userAgents, result.UserAgent)
+			}
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"items": userAgents,
@@ -614,9 +710,6 @@ func CreateCountry(db *gorm.DB) gin.HandlerFunc {
 // @Router       /countries [get]
 func GetCountries(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var countries []models.Country
-		var total int64
-
 		page := c.DefaultQuery("page", "1")
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
@@ -635,29 +728,65 @@ func GetCountries(db *gorm.DB) gin.HandlerFunc {
 			limitNum = 10
 		}
 
-		baseQuery := db.Model(&models.Country{})
+		// Build WHERE conditions
+		var conditions []string
+		var args []interface{}
+
 		if status != "" {
-			baseQuery = baseQuery.Where("status = ?", status)
+			conditions = append(conditions, "status = ?")
+			args = append(args, status)
 		}
 		if search != "" {
-			baseQuery = baseQuery.Where("code LIKE ?", "%"+search+"%")
+			conditions = append(conditions, "code LIKE ?")
+			args = append(args, "%"+search+"%")
 		}
 
-		// Count-Query (ohne Limit/Offset/Order)
-		countQuery := baseQuery.Session(&gorm.Session{})
-		countQuery.Count(&total)
+		// Build WHERE clause
+		whereClause := ""
+		if len(conditions) > 0 {
+			whereClause = "WHERE " + strings.Join(conditions, " AND ")
+		}
 
-		// Items-Query (mit Limit/Offset/Order)
-		itemQuery := baseQuery.Session(&gorm.Session{})
+		// Validate orderBy and order
 		if orderBy != "ID" && orderBy != "Code" && orderBy != "Status" {
 			orderBy = "ID"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
-		itemQuery = itemQuery.Order(orderBy + " " + order)
-		itemQuery = itemQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
-		itemQuery.Find(&countries)
+
+		// Use COUNT(*) OVER() for single query optimization
+		query := fmt.Sprintf(`
+			SELECT *, COUNT(*) OVER() as total_count 
+			FROM countries 
+			%s 
+			ORDER BY %s %s 
+			LIMIT ? OFFSET ?
+		`, whereClause, orderBy, order)
+
+		// Add pagination parameters
+		args = append(args, limitNum, (pageNum-1)*limitNum)
+
+		// Execute query
+		var results []struct {
+			models.Country
+			TotalCount int64 `json:"total_count"`
+		}
+
+		if err := db.Raw(query, args...).Scan(&results).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch countries"})
+			return
+		}
+
+		// Extract data
+		var countries []models.Country
+		var total int64
+		if len(results) > 0 {
+			total = results[0].TotalCount
+			for _, result := range results {
+				countries = append(countries, result.Country)
+			}
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"items": countries,
@@ -754,9 +883,6 @@ func CreateCharsetRule(db *gorm.DB) gin.HandlerFunc {
 // @Router       /charsets [get]
 func GetCharsetRules(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var rules []models.CharsetRule
-		var total int64
-
 		page := c.DefaultQuery("page", "1")
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
@@ -775,29 +901,65 @@ func GetCharsetRules(db *gorm.DB) gin.HandlerFunc {
 			limitNum = 10
 		}
 
-		baseQuery := db.Model(&models.CharsetRule{})
+		// Build WHERE conditions
+		var conditions []string
+		var args []interface{}
+
 		if status != "" {
-			baseQuery = baseQuery.Where("status = ?", status)
+			conditions = append(conditions, "status = ?")
+			args = append(args, status)
 		}
 		if search != "" {
-			baseQuery = baseQuery.Where("charset LIKE ?", "%"+search+"%")
+			conditions = append(conditions, "charset LIKE ?")
+			args = append(args, "%"+search+"%")
 		}
 
-		// Count-Query (ohne Limit/Offset/Order)
-		countQuery := baseQuery.Session(&gorm.Session{})
-		countQuery.Count(&total)
+		// Build WHERE clause
+		whereClause := ""
+		if len(conditions) > 0 {
+			whereClause = "WHERE " + strings.Join(conditions, " AND ")
+		}
 
-		// Items-Query (mit Limit/Offset/Order)
-		itemQuery := baseQuery.Session(&gorm.Session{})
+		// Validate orderBy and order
 		if orderBy != "ID" && orderBy != "Charset" && orderBy != "Status" {
 			orderBy = "ID"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
-		itemQuery = itemQuery.Order(orderBy + " " + order)
-		itemQuery = itemQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
-		itemQuery.Find(&rules)
+
+		// Use COUNT(*) OVER() for single query optimization
+		query := fmt.Sprintf(`
+			SELECT *, COUNT(*) OVER() as total_count 
+			FROM charset_rules 
+			%s 
+			ORDER BY %s %s 
+			LIMIT ? OFFSET ?
+		`, whereClause, orderBy, order)
+
+		// Add pagination parameters
+		args = append(args, limitNum, (pageNum-1)*limitNum)
+
+		// Execute query
+		var results []struct {
+			models.CharsetRule
+			TotalCount int64 `json:"total_count"`
+		}
+
+		if err := db.Raw(query, args...).Scan(&results).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch charset rules"})
+			return
+		}
+
+		// Extract data
+		var rules []models.CharsetRule
+		var total int64
+		if len(results) > 0 {
+			total = results[0].TotalCount
+			for _, result := range results {
+				rules = append(rules, result.CharsetRule)
+			}
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"items": rules,
@@ -897,9 +1059,6 @@ func CreateUsernameRule(db *gorm.DB) gin.HandlerFunc {
 // @Router       /usernames [get]
 func GetUsernameRules(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var rules []models.UsernameRule
-		var total int64
-
 		page := c.DefaultQuery("page", "1")
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
@@ -918,29 +1077,65 @@ func GetUsernameRules(db *gorm.DB) gin.HandlerFunc {
 			limitNum = 10
 		}
 
-		baseQuery := db.Model(&models.UsernameRule{})
+		// Build WHERE conditions
+		var conditions []string
+		var args []interface{}
+
 		if status != "" {
-			baseQuery = baseQuery.Where("status = ?", status)
+			conditions = append(conditions, "status = ?")
+			args = append(args, status)
 		}
 		if search != "" {
-			baseQuery = baseQuery.Where("username LIKE ?", "%"+search+"%")
+			conditions = append(conditions, "username LIKE ?")
+			args = append(args, "%"+search+"%")
 		}
 
-		// Count-Query (ohne Limit/Offset/Order)
-		countQuery := baseQuery.Session(&gorm.Session{})
-		countQuery.Count(&total)
+		// Build WHERE clause
+		whereClause := ""
+		if len(conditions) > 0 {
+			whereClause = "WHERE " + strings.Join(conditions, " AND ")
+		}
 
-		// Items-Query (mit Limit/Offset/Order)
-		itemQuery := baseQuery.Session(&gorm.Session{})
+		// Validate orderBy and order
 		if orderBy != "ID" && orderBy != "Username" && orderBy != "Status" {
 			orderBy = "ID"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
-		itemQuery = itemQuery.Order(orderBy + " " + order)
-		itemQuery = itemQuery.Offset((pageNum - 1) * limitNum).Limit(limitNum)
-		itemQuery.Find(&rules)
+
+		// Use COUNT(*) OVER() for single query optimization
+		query := fmt.Sprintf(`
+			SELECT *, COUNT(*) OVER() as total_count 
+			FROM username_rules 
+			%s 
+			ORDER BY %s %s 
+			LIMIT ? OFFSET ?
+		`, whereClause, orderBy, order)
+
+		// Add pagination parameters
+		args = append(args, limitNum, (pageNum-1)*limitNum)
+
+		// Execute query
+		var results []struct {
+			models.UsernameRule
+			TotalCount int64 `json:"total_count"`
+		}
+
+		if err := db.Raw(query, args...).Scan(&results).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch username rules"})
+			return
+		}
+
+		// Extract data
+		var rules []models.UsernameRule
+		var total int64
+		if len(results) > 0 {
+			total = results[0].TotalCount
+			for _, result := range results {
+				rules = append(rules, result.UsernameRule)
+			}
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"items": rules,

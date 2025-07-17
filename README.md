@@ -10,9 +10,11 @@ A full-stack firewall application that provides IP, email, user agent, and count
 - Country-based filtering
 - Real-time request filtering
 - Elasticsearch integration for search capabilities
-- MariaDB for data persistence
+- MariaDB for data persistence with connection pooling
 - Redis for caching
 - Kibana for data visualization
+- Configurable database connection pooling with monitoring
+- Comprehensive configuration management with Viper
 
 ## Prerequisites
 
@@ -53,18 +55,29 @@ cd firewall
 docker-compose up -d
 ```
 This will start:
-- MariaDB (port 3306)
+- MariaDB (port 3306) with optimized connection settings
 - Redis (port 6379)
 - Elasticsearch (port 9200)
 - Kibana (port 5601)
 
-3. Start the Go backend server:
+3. Configure the application (optional):
+```bash
+# Using environment variables
+export FIREWALL_SERVER_PORT=8081
+export FIREWALL_DATABASE_HOST=localhost
+export FIREWALL_DATABASE_MAX_OPEN_CONNS=25
+export FIREWALL_DATABASE_MAX_IDLE_CONNS=5
+
+# Or create a config.yaml file (see docs/viper_configuration.md)
+```
+
+4. Start the Go backend server:
 ```bash
 go run main.go
 ```
 The backend server will start on port 8081.
 
-4. Start the React frontend:
+5. Start the React frontend:
 ```bash
 cd firewall-app
 npm install
@@ -92,6 +105,9 @@ The frontend will be available at http://localhost:3000
 
 ### Filtering
 - `POST /filter` - Filter requests based on multiple criteria
+
+### System Monitoring
+- `GET /api/stats` - Get system statistics including connection pool metrics
 
 ## API-Dokumentation (Swagger)
 

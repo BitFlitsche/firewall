@@ -20,7 +20,8 @@ func Migrate(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	// Indizes für Filter-/Sortierspalten
+
+	// Single column indexes for basic filtering
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_ip_status ON i_ps (status)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_ip_address ON i_ps (address)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_email_status ON emails (status)")
@@ -29,5 +30,38 @@ func Migrate(db *gorm.DB) error {
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_useragent_useragent ON user_agents (user_agent)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_country_status ON countries (status)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_country_code ON countries (code)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_charset_status ON charset_rules (status)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_charset_charset ON charset_rules (charset)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_status ON username_rules (status)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_username ON username_rules (username)")
+
+	// Composite indexes for common filter combinations (status + search field)
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_ip_status_address ON i_ps (status, address)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_ip_address_status ON i_ps (address, status)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_email_status_address ON emails (status, address)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_email_address_status ON emails (address, status)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_useragent_status_useragent ON user_agents (status, user_agent)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_useragent_useragent_status ON user_agents (user_agent, status)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_country_status_code ON countries (status, code)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_country_code_status ON countries (code, status)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_charset_status_charset ON charset_rules (status, charset)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_charset_charset_status ON charset_rules (charset, status)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_status_username ON username_rules (status, username)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_username_status ON username_rules (username, status)")
+
+	// Composite indexes for sorting with filtering
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_ip_status_id ON i_ps (status, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_ip_status_address_id ON i_ps (status, address, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_email_status_id ON emails (status, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_email_status_address_id ON emails (status, address, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_useragent_status_id ON user_agents (status, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_useragent_status_useragent_id ON user_agents (status, user_agent, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_country_status_id ON countries (status, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_country_status_code_id ON countries (status, code, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_charset_status_id ON charset_rules (status, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_charset_status_charset_id ON charset_rules (status, charset, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_status_id ON username_rules (status, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_status_username_id ON username_rules (status, username, id)")
+
 	return nil
 }

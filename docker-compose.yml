@@ -49,6 +49,7 @@ services:
       - 3306:3306
     networks:
       - esnet
+    command: --max-connections=200 --innodb-buffer-pool-size=256M
 
   redis:
     image: redis:latest
