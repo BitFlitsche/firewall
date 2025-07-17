@@ -101,4 +101,5 @@ func SetupRoutes(r *gin.Engine) {
 
 	r.GET("/system-stats", controllers.SystemStatsHandler(db))
 	r.POST("/sync/charsets", controllers.SyncCharsetsHandler(db))
+	r.POST("/sync/usernames", controllers.SyncUsernamesHandler(db))
 }

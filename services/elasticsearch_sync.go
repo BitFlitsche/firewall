@@ -153,6 +153,76 @@ func IndexCountry(country models.Country) error {
 	return nil
 }
 
+// IndexCharsetRule indexes a charset rule to Elasticsearch
+func IndexCharsetRule(charset models.CharsetRule) error {
+	es := config.ESClient
+
+	doc := map[string]interface{}{
+		"charset": charset.Charset,
+		"status":  charset.Status,
+	}
+
+	docJSON, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+
+	req := esapi.IndexRequest{
+		Index:      "charsets",
+		DocumentID: charset.Charset,
+		Body:       strings.NewReader(string(docJSON)),
+	}
+
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		log.Printf("Error indexing charset rule: %s", res.String())
+		return err
+	}
+
+	log.Printf("Successfully indexed charset rule: %s", charset.Charset)
+	return nil
+}
+
+// IndexUsernameRule indexes a username rule to Elasticsearch
+func IndexUsernameRule(username models.UsernameRule) error {
+	es := config.ESClient
+
+	doc := map[string]interface{}{
+		"username": username.Username,
+		"status":   username.Status,
+	}
+
+	docJSON, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+
+	req := esapi.IndexRequest{
+		Index:      "usernames",
+		DocumentID: username.Username,
+		Body:       strings.NewReader(string(docJSON)),
+	}
+
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		log.Printf("Error indexing username rule: %s", res.String())
+		return err
+	}
+
+	log.Printf("Successfully indexed username rule: %s", username.Username)
+	return nil
+}
+
 // SyncAllIPs syncs all IP addresses from MySQL to Elasticsearch
 func SyncAllIPs() error {
 	var ips []models.IP
@@ -221,6 +291,40 @@ func SyncAllCountries() error {
 	return nil
 }
 
+// SyncAllCharsetRules syncs all charset rules from MySQL to Elasticsearch
+func SyncAllCharsetRules() error {
+	var charsets []models.CharsetRule
+	if err := config.DB.Find(&charsets).Error; err != nil {
+		return err
+	}
+
+	for _, charset := range charsets {
+		if err := IndexCharsetRule(charset); err != nil {
+			log.Printf("Error syncing charset rule %s: %v", charset.Charset, err)
+		}
+	}
+
+	log.Printf("Synced %d charset rules to Elasticsearch", len(charsets))
+	return nil
+}
+
+// SyncAllUsernameRules syncs all username rules from MySQL to Elasticsearch
+func SyncAllUsernameRules() error {
+	var usernames []models.UsernameRule
+	if err := config.DB.Find(&usernames).Error; err != nil {
+		return err
+	}
+
+	for _, username := range usernames {
+		if err := IndexUsernameRule(username); err != nil {
+			log.Printf("Error syncing username rule %s: %v", username.Username, err)
+		}
+	}
+
+	log.Printf("Synced %d username rules to Elasticsearch", len(usernames))
+	return nil
+}
+
 // SyncAllData syncs all data from MySQL to Elasticsearch
 func SyncAllData() error {
 	log.Println("Starting full data sync to Elasticsearch...")
@@ -239,6 +343,14 @@ func SyncAllData() error {
 
 	if err := SyncAllCountries(); err != nil {
 		log.Printf("Error syncing countries: %v", err)
+	}
+
+	if err := SyncAllCharsetRules(); err != nil {
+		log.Printf("Error syncing charset rules: %v", err)
+	}
+
+	if err := SyncAllUsernameRules(); err != nil {
+		log.Printf("Error syncing username rules: %v", err)
 	}
 
 	log.Println("Full data sync completed")

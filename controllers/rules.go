@@ -1026,6 +1026,17 @@ func SyncCharsetsHandler(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// Endpoint: POST /sync/usernames
+func SyncUsernamesHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if err := services.SyncAllUsernamesToES(db); err != nil {
+			c.JSON(500, gin.H{"error": "Failed to sync usernames to Elasticsearch"})
+			return
+		}
+		c.JSON(200, gin.H{"message": "All usernames synced to Elasticsearch"})
+	}
+}
+
 // CreateUsernameRule fügt eine neue Username-Regel hinzu
 func CreateUsernameRule(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
