@@ -197,7 +197,7 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 		// Use COUNT(*) OVER() for single query optimization
 		query := fmt.Sprintf(`
 			SELECT *, COUNT(*) OVER() as total_count 
-			FROM i_ps 
+			FROM ips 
 			%s 
 			ORDER BY %s %s 
 			LIMIT ? OFFSET ?
