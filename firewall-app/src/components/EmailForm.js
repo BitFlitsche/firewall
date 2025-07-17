@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import axiosInstance from '../axiosConfig';
 // MUI imports
 import Box from '@mui/material/Box';
@@ -237,7 +237,6 @@ const EmailForm = () => {
     
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
-    const [filterValue, setFilterValue] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [orderBy, setOrderBy] = useState('ID');
     const [order, setOrder] = useState('desc');

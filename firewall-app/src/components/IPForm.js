@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axiosInstance from '../axiosConfig';
 // MUI imports
 import Box from '@mui/material/Box';
@@ -240,7 +240,6 @@ const IPForm = () => {
     
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
-    const [filterValue, setFilterValue] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [orderBy, setOrderBy] = useState('ID');
     const [order, setOrder] = useState('desc');
@@ -253,7 +252,7 @@ const IPForm = () => {
     // Debounced search state
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearchValue, setDebouncedSearchValue] = useState('');
-    const searchInputRef = useRef(null);
+    const searchInputRef = React.useRef(null);
     const [wasFocused, setWasFocused] = useState(false);
 
     // Set initial filterStatus from query param
@@ -430,7 +429,7 @@ const IPForm = () => {
     }, []);
 
     // Memoized values for components
-    const formProps = useMemo(() => ({
+    const formProps = React.useMemo(() => ({
         ip,
         status,
         message,
@@ -442,7 +441,7 @@ const IPForm = () => {
         onCancelEdit: handleCancelEdit
     }), [ip, status, message, error, editId, handleIpChange, handleStatusChangeForm, handleSubmit, handleCancelEdit]);
 
-    const filterProps = useMemo(() => ({
+    const filterProps = React.useMemo(() => ({
         searchValue,
         filterStatus,
         globalStatusCounts,
@@ -454,7 +453,7 @@ const IPForm = () => {
         searchInputRef
     }), [searchValue, filterStatus, globalStatusCounts, handleSearchChange, handleStatusChange, handleReset, handleSearchFocus, handleSearchBlur]);
 
-    const tableProps = useMemo(() => ({
+    const tableProps = React.useMemo(() => ({
         ips,
         loading,
         orderBy,

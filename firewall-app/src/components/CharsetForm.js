@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import axios from '../axiosConfig';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -236,7 +236,6 @@ const CharsetForm = () => {
     
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
-    const [filterValue, setFilterValue] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [orderBy, setOrderBy] = useState('ID');
     const [order, setOrder] = useState('desc');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from '../axiosConfig';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -239,7 +239,6 @@ const CountryForm = () => {
     
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
-    const [filterValue, setFilterValue] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [orderBy, setOrderBy] = useState('ID');
     const [order, setOrder] = useState('desc');
@@ -252,7 +251,7 @@ const CountryForm = () => {
     // Debounced search state
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearchValue, setDebouncedSearchValue] = useState('');
-    const searchInputRef = useRef(null);
+    const searchInputRef = React.useRef(null);
     const [wasFocused, setWasFocused] = useState(false);
 
     // Set initial filterStatus from query param
@@ -423,7 +422,7 @@ const CountryForm = () => {
     }, []);
 
     // Memoized values for components
-    const formProps = useMemo(() => ({
+    const formProps = React.useMemo(() => ({
         country,
         status,
         message,
@@ -435,7 +434,7 @@ const CountryForm = () => {
         onCancelEdit: handleCancelEdit
     }), [country, status, message, error, editId, handleCountryChange, handleStatusChangeForm, handleSubmit, handleCancelEdit]);
 
-    const filterProps = useMemo(() => ({
+    const filterProps = React.useMemo(() => ({
         searchValue,
         filterStatus,
         globalStatusCounts,
@@ -447,7 +446,7 @@ const CountryForm = () => {
         searchInputRef
     }), [searchValue, filterStatus, globalStatusCounts, handleSearchChange, handleStatusChange, handleReset, handleSearchFocus, handleSearchBlur]);
 
-    const tableProps = useMemo(() => ({
+    const tableProps = React.useMemo(() => ({
         countries,
         loading,
         orderBy,

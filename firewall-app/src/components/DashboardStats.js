@@ -166,25 +166,17 @@ const FilterStats = ({ stats, error, handleCountClick, getFilterIcon, getStatusC
 
 const DashboardStats = () => {
   const [stats, setStats] = useState({
-    ips: { total: 0, allowed: 0, denied: 0, whitelisted: 0 },
-    emails: { total: 0, allowed: 0, denied: 0, whitelisted: 0 },
-    userAgents: { total: 0, allowed: 0, denied: 0, whitelisted: 0 },
-    countries: { total: 0, allowed: 0, denied: 0, whitelisted: 0 },
-    charsets: { total: 0, allowed: 0, denied: 0, whitelisted: 0 },
-    usernames: { total: 0, allowed: 0, denied: 0, whitelisted: 0 }
+    totalIPs: 0,
+    totalEmails: 0,
+    totalUserAgents: 0,
+    totalCountries: 0,
+    totalCharsets: 0,
+    totalUsernames: 0,
+    dbConnections: { current: 0, max: 0, idle: 0, inUse: 0 }
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
-  const countStatuses = (arr, statusField = 'status') => {
-    const counts = { allowed: 0, denied: 0, whitelisted: 0 };
-    arr.forEach(item => {
-      const status = (item[statusField] || '').toLowerCase();
-      if (statusLabels.includes(status)) counts[status]++;
-    });
-    return counts;
-  };
 
   const handleCountClick = (type, status) => {
     let path = '/';
