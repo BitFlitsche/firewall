@@ -4,23 +4,27 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
+import Alert from '@mui/material/Alert';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import Alert from '@mui/material/Alert';
-import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import TableSortLabel from '@mui/material/TableSortLabel';
 import TablePagination from '@mui/material/TablePagination';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
+import Tooltip from '@mui/material/Tooltip';
+import InfoIcon from '@mui/icons-material/Info';
 import { useLocation } from 'react-router-dom';
 
 // Separate memoized search field component that never re-renders
@@ -87,14 +91,14 @@ const FilterControls = memo(({
 
 // Separate form component that never re-renders
 // Separate form component that only re-renders when form data changes
-const UserAgentFormComponent = memo(({ onSubmit, userAgent, setUserAgent, status, setStatus, editId, setEditId }) => {
+const UserAgentFormComponent = memo(({ onSubmit, userAgent, setUserAgent, status, setStatus, isRegex, setIsRegex, editId, setEditId }) => {
     return (
         <Box component="form" onSubmit={onSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'stretch', mb: 2 }}>
             <TextField
                 label="User Agent"
                 value={userAgent}
                 onChange={(e) => setUserAgent(e.target.value)}
-                placeholder="Enter User Agent"
+                placeholder="Enter user agent or regex pattern"
                 required
                 fullWidth
             />
@@ -109,11 +113,51 @@ const UserAgentFormComponent = memo(({ onSubmit, userAgent, setUserAgent, status
                 <MenuItem value="allowed">Allowed</MenuItem>
                 <MenuItem value="whitelisted">Whitelisted</MenuItem>
             </TextField>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={isRegex}
+                            onChange={(e) => setIsRegex(e.target.checked)}
+                            color="primary"
+                        />
+                    }
+                    label="Use as Regular Expression"
+                />
+                <Tooltip 
+                    title={
+                        <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Regex Examples:
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>.*bot.*</code> - Block all bot user agents
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>.*crawler.*</code> - Block web crawlers
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>.*spider.*</code> - Block search engine spiders
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>Mozilla/5\.0.*Chrome</code> - Block Chrome browsers
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>.*curl.*</code> - Block curl requests
+                            </Typography>
+                        </Box>
+                    }
+                    arrow
+                    placement="top"
+                >
+                    <InfoIcon color="action" sx={{ fontSize: 20 }} />
+                </Tooltip>
+            </Box>
             <Button type="submit" variant="contained" color="primary">
                 {editId ? 'Update User Agent' : 'Add User Agent'}
             </Button>
             {editId && (
-                <Button variant="outlined" color="secondary" onClick={() => { setEditId(null); setUserAgent(''); setStatus('denied'); }}>
+                <Button variant="outlined" color="secondary" onClick={() => { setEditId(null); setUserAgent(''); setStatus('denied'); setIsRegex(false); }}>
                     Cancel Edit
                 </Button>
             )}
@@ -123,6 +167,7 @@ const UserAgentFormComponent = memo(({ onSubmit, userAgent, setUserAgent, status
     // Only re-render when form data changes
     return prevProps.userAgent === nextProps.userAgent && 
            prevProps.status === nextProps.status && 
+           prevProps.isRegex === nextProps.isRegex &&
            prevProps.editId === nextProps.editId;
 });
 
@@ -188,13 +233,14 @@ const UserAgentTable = memo(({
                                         Status
                                     </TableSortLabel>
                                 </TableCell>
+                                <TableCell>Is Regex</TableCell>
                                 <TableCell>Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {userAgents.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center">No User Agents</TableCell>
+                                    <TableCell colSpan={5} align="center">No User Agents</TableCell>
                                 </TableRow>
                             ) : (
                                 userAgents.map(userAgentItem => (
@@ -202,6 +248,7 @@ const UserAgentTable = memo(({
                                         <TableCell>{userAgentItem.ID}</TableCell>
                                         <TableCell>{userAgentItem.UserAgent}</TableCell>
                                         <TableCell>{userAgentItem.Status}</TableCell>
+                                        <TableCell>{userAgentItem.IsRegex ? 'Yes' : 'No'}</TableCell>
                                         <TableCell>
                                             <IconButton onClick={() => onEdit(userAgentItem)} size="small"><EditIcon /></IconButton>
                                             <IconButton onClick={() => onDelete(userAgentItem.ID)} size="small" color="error"><DeleteIcon /></IconButton>
@@ -230,6 +277,7 @@ const UserAgentTable = memo(({
 const UserAgentForm = () => {
     const [userAgent, setUserAgent] = useState('');
     const [status, setStatus] = useState('denied');
+    const [isRegex, setIsRegex] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [refresh, setRefresh] = useState(false);
@@ -324,18 +372,19 @@ const UserAgentForm = () => {
         setError('');
         try {
             if (editId) {
-                await axios.put(`/user-agent/${editId}`, { UserAgent: userAgent, Status: status });
+                await axios.put(`/user-agent/${editId}`, { UserAgent: userAgent, Status: status, IsRegex: isRegex });
                 setMessage('User Agent updated successfully');
             } else {
-                await axios.post('/user-agent', { UserAgent: userAgent, Status: status });
+                await axios.post('/user-agent', { UserAgent: userAgent, Status: status, IsRegex: isRegex });
                 setMessage('User Agent added successfully');
             }
             setUserAgent('');
             setStatus('denied');
+            setIsRegex(false); // Reset regex checkbox
             setEditId(null);
             setRefresh(r => !r);
-        } catch (err) {
-            setError('Error saving User Agent');
+        } catch (error) {
+            setError('Error saving user agent');
         }
     };
 
@@ -380,6 +429,7 @@ const UserAgentForm = () => {
     const handleEdit = useCallback((userAgentItem) => {
         setUserAgent(userAgentItem.UserAgent);
         setStatus(userAgentItem.Status);
+        setIsRegex(userAgentItem.IsRegex || false); // Set regex checkbox
         setEditId(userAgentItem.ID);
     }, []);
 
@@ -406,6 +456,8 @@ const UserAgentForm = () => {
                     setUserAgent={setUserAgent}
                     status={status}
                     setStatus={setStatus}
+                    isRegex={isRegex}
+                    setIsRegex={setIsRegex}
                     editId={editId}
                     setEditId={setEditId}
                 />

@@ -1,70 +1,112 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import axios from '../axiosConfig';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
+import Alert from '@mui/material/Alert';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import Alert from '@mui/material/Alert';
-import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import TableSortLabel from '@mui/material/TableSortLabel';
 import TablePagination from '@mui/material/TablePagination';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
+import Tooltip from '@mui/material/Tooltip';
+import InfoIcon from '@mui/icons-material/Info';
 import { useLocation } from 'react-router-dom';
 
 // Memoized Form Component
-const UsernameFormComponent = React.memo(({ 
-    username, 
-    status, 
-    message, 
-    error, 
-    editId, 
-    onUsernameChange, 
-    onStatusChange, 
-    onSubmit, 
-    onCancelEdit 
-}) => (
-    <Box component="form" onSubmit={onSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'stretch', mb: 2 }}>
-        <TextField
-            label="Username"
-            value={username}
-            onChange={onUsernameChange}
-            placeholder="Enter username"
-            required
-            fullWidth
-        />
-        <TextField
-            select
-            label="Status"
-            value={status}
-            onChange={onStatusChange}
-            fullWidth
-        >
-            <MenuItem value="denied">Denied</MenuItem>
-            <MenuItem value="allowed">Allowed</MenuItem>
-            <MenuItem value="whitelisted">Whitelisted</MenuItem>
-        </TextField>
-        <Button type="submit" variant="contained" color="primary">
-            {editId ? 'Update Username' : 'Add Username'}
-        </Button>
-        {editId && (
-            <Button variant="outlined" color="secondary" onClick={onCancelEdit}>
-                Cancel Edit
+const UsernameFormComponent = memo(({ onSubmit, username, setUsername, status, setStatus, isRegex, setIsRegex, editId, setEditId }) => {
+    return (
+        <Box component="form" onSubmit={onSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'stretch', mb: 2 }}>
+            <TextField
+                label="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username or regex pattern"
+                required
+                fullWidth
+            />
+            <TextField
+                select
+                label="Status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                fullWidth
+            >
+                <MenuItem value="denied">Denied</MenuItem>
+                <MenuItem value="allowed">Allowed</MenuItem>
+                <MenuItem value="whitelisted">Whitelisted</MenuItem>
+            </TextField>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={isRegex}
+                            onChange={(e) => setIsRegex(e.target.checked)}
+                            color="primary"
+                        />
+                    }
+                    label="Use as Regular Expression"
+                />
+                <Tooltip 
+                    title={
+                        <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Regex Examples:
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>admin.*</code> - Block admin-like usernames
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>.*bot.*</code> - Block bot usernames
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>test.*</code> - Block test usernames
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>^guest[0-9]+$</code> - Block guest123, guest456, etc.
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>.*admin.*</code> - Block any username containing "admin"
+                            </Typography>
+                        </Box>
+                    }
+                    arrow
+                    placement="top"
+                >
+                    <InfoIcon color="action" sx={{ fontSize: 20 }} />
+                </Tooltip>
+            </Box>
+            <Button type="submit" variant="contained" color="primary">
+                {editId ? 'Update Username' : 'Add Username'}
             </Button>
-        )}
-    </Box>
-));
+            {editId && (
+                <Button variant="outlined" color="secondary" onClick={() => { setEditId(null); setUsername(''); setStatus('denied'); setIsRegex(false); }}>
+                    Cancel Edit
+                </Button>
+            )}
+        </Box>
+    );
+}, (prevProps, nextProps) => {
+    // Only re-render when form data changes
+    return prevProps.username === nextProps.username && 
+           prevProps.status === nextProps.status && 
+           prevProps.isRegex === nextProps.isRegex &&
+           prevProps.editId === nextProps.editId;
+});
 
 // Memoized Filter Controls Component
 const FilterControls = React.memo(({ 
@@ -185,25 +227,27 @@ const UsernameTable = React.memo(({
                                         Status
                                     </TableSortLabel>
                                 </TableCell>
+                                <TableCell>Regex</TableCell>
                                 <TableCell>Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {usernames.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center">No usernames</TableCell>
+                                    <TableCell colSpan={5} align="center">No Usernames</TableCell>
                                 </TableRow>
                             ) : (
-                                usernames.map((usernameItem) => (
+                                usernames.map(usernameItem => (
                                     <TableRow key={usernameItem.ID}>
                                         <TableCell>{usernameItem.ID}</TableCell>
                                         <TableCell>{usernameItem.Username}</TableCell>
                                         <TableCell>{usernameItem.Status}</TableCell>
+                                        <TableCell>{usernameItem.IsRegex ? 'Yes' : 'No'}</TableCell>
                                         <TableCell>
-                                            <IconButton onClick={() => onEdit(usernameItem)} size="small">
+                                            <IconButton onClick={() => onEdit(usernameItem)} color="primary">
                                                 <EditIcon />
                                             </IconButton>
-                                            <IconButton onClick={() => onDelete(usernameItem.ID)} size="small" color="error">
+                                            <IconButton onClick={() => onDelete(usernameItem.ID)} color="error">
                                                 <DeleteIcon />
                                             </IconButton>
                                         </TableCell>
@@ -231,6 +275,7 @@ const UsernameTable = React.memo(({
 const UsernameForm = () => {
     const [username, setUsername] = useState('');
     const [status, setStatus] = useState('denied');
+    const [isRegex, setIsRegex] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [refresh, setRefresh] = useState(false);
@@ -333,20 +378,21 @@ const UsernameForm = () => {
         setError('');
         try {
             if (editId) {
-                await axios.put(`/username/${editId}`, { username, status });
+                await axios.put(`/username/${editId}`, { username, status, IsRegex: isRegex });
                 setMessage('Username updated successfully');
             } else {
-                await axios.post('/username', { username, status });
+                await axios.post('/username', { username, status, IsRegex: isRegex });
                 setMessage('Username added successfully');
             }
             setUsername('');
             setStatus('denied');
+            setIsRegex(false);
             setEditId(null);
             setRefresh(r => !r);
         } catch (err) {
             setError('Error saving username');
         }
-    }, [username, status, editId]);
+    }, [username, status, editId, isRegex]);
 
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this username?')) return;
@@ -362,6 +408,7 @@ const UsernameForm = () => {
     const handleEdit = useCallback((usernameItem) => {
         setUsername(usernameItem.Username);
         setStatus(usernameItem.Status);
+        setIsRegex(usernameItem.IsRegex || false);
         setEditId(usernameItem.ID);
     }, []);
 
@@ -410,6 +457,7 @@ const UsernameForm = () => {
     const handleCancelEdit = useCallback(() => {
         setUsername('');
         setStatus('denied');
+        setIsRegex(false);
         setEditId(null);
     }, []);
 
@@ -431,8 +479,10 @@ const UsernameForm = () => {
         onUsernameChange: handleUsernameChange,
         onStatusChange: handleStatusChangeForm,
         onSubmit: handleSubmit,
-        onCancelEdit: handleCancelEdit
-    }), [username, status, message, error, editId, handleUsernameChange, handleStatusChangeForm, handleSubmit, handleCancelEdit]);
+        onCancelEdit: handleCancelEdit,
+        isRegex,
+        setIsRegex
+    }), [username, status, message, error, editId, handleUsernameChange, handleStatusChangeForm, handleSubmit, handleCancelEdit, isRegex]);
 
     const filterProps = React.useMemo(() => ({
         searchValue,
@@ -465,16 +515,46 @@ const UsernameForm = () => {
         <Box sx={{ maxWidth: 700, mx: 'auto', mt: 4 }}>
             <Paper sx={{ p: 3 }} elevation={3}>
                 <Typography variant="h5" gutterBottom>Username Management</Typography>
-                <UsernameFormComponent {...formProps} />
+                <UsernameFormComponent 
+                    onSubmit={handleSubmit}
+                    username={username}
+                    setUsername={setUsername}
+                    status={status}
+                    setStatus={setStatus}
+                    isRegex={isRegex}
+                    setIsRegex={setIsRegex}
+                    editId={editId}
+                    setEditId={setEditId}
+                />
                 {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                 
                 {/* Filter controls outside of table component */}
                 <Box sx={{ mt: 4, mb: 2 }}>
-                    <FilterControls {...filterProps} />
+                    <FilterControls 
+                        searchValue={searchValue}
+                        onSearchChange={handleSearchChange}
+                        filterStatus={filterStatus}
+                        onStatusChange={handleStatusChange}
+                        globalStatusCounts={globalStatusCounts}
+                        onReset={handleReset}
+                    />
                 </Box>
                 
-                <UsernameTable {...tableProps} />
+                <UsernameTable 
+                    usernames={usernames}
+                    loading={loading}
+                    total={total}
+                    page={page}
+                    rowsPerPage={rowsPerPage}
+                    orderBy={orderBy}
+                    order={order}
+                    onSort={handleSort}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                />
             </Paper>
         </Box>
     );

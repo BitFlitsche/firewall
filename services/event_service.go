@@ -81,19 +81,51 @@ func (ep *EventProcessor) start() {
 func (ep *EventProcessor) processEvent(event Event) {
 	log.Printf("Processing event: %s.%s", event.Type, event.Action)
 
+	// Get cache instance for invalidation
+	cache := GetCache()
+
 	switch event.Type {
 	case "ip":
 		ep.processIPEvent(event)
+		// Invalidate cache for IP-related data
+		if event.Action == "created" || event.Action == "updated" || event.Action == "deleted" {
+			cache.InvalidateAll("ip")
+			cache.InvalidateFilter("ip")
+		}
 	case "email":
 		ep.processEmailEvent(event)
+		// Invalidate cache for email-related data
+		if event.Action == "created" || event.Action == "updated" || event.Action == "deleted" {
+			cache.InvalidateAll("email")
+			cache.InvalidateFilter("email")
+		}
 	case "user_agent":
 		ep.processUserAgentEvent(event)
+		// Invalidate cache for user agent-related data
+		if event.Action == "created" || event.Action == "updated" || event.Action == "deleted" {
+			cache.InvalidateAll("user_agent")
+			cache.InvalidateFilter("user_agent")
+		}
 	case "country":
 		ep.processCountryEvent(event)
+		// Invalidate cache for country-related data
+		if event.Action == "created" || event.Action == "updated" || event.Action == "deleted" {
+			cache.InvalidateAll("country")
+			cache.InvalidateFilter("country")
+		}
 	case "charset":
 		ep.processCharsetEvent(event)
+		// Invalidate cache for charset-related data
+		if event.Action == "created" || event.Action == "updated" || event.Action == "deleted" {
+			cache.InvalidateAll("charset")
+		}
 	case "username":
 		ep.processUsernameEvent(event)
+		// Invalidate cache for username-related data
+		if event.Action == "created" || event.Action == "updated" || event.Action == "deleted" {
+			cache.InvalidateAll("username")
+			cache.InvalidateFilter("username")
+		}
 	default:
 		log.Printf("Unknown event type: %s", event.Type)
 	}

@@ -53,8 +53,9 @@ func IndexEmail(email models.Email) error {
 	es := config.ESClient
 
 	doc := map[string]interface{}{
-		"email":  email.Address,
-		"status": email.Status,
+		"email":    email.Address,
+		"status":   email.Status,
+		"is_regex": email.IsRegex,
 	}
 
 	docJSON, err := json.Marshal(doc)
@@ -90,6 +91,7 @@ func IndexUserAgent(userAgent models.UserAgent) error {
 	doc := map[string]interface{}{
 		"user_agent": userAgent.UserAgent,
 		"status":     userAgent.Status,
+		"is_regex":   userAgent.IsRegex,
 	}
 
 	docJSON, err := json.Marshal(doc)
@@ -195,6 +197,7 @@ func IndexUsernameRule(username models.UsernameRule) error {
 	doc := map[string]interface{}{
 		"username": username.Username,
 		"status":   username.Status,
+		"is_regex": username.IsRegex,
 	}
 
 	docJSON, err := json.Marshal(doc)

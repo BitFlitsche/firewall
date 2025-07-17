@@ -36,8 +36,8 @@ const SystemStats = () => {
     <Paper sx={{ p: 3, mb: 3 }} elevation={3}>
       <Typography variant="h5" gutterBottom>System Health</Typography>
       <Grid container spacing={2}>
-        {/* System, DB, ES, App als eigene Boxen */}
-        <Grid item xs={12} md={3}>
+        {/* System, DB, ES, App, Cache als eigene Boxen */}
+        <Grid item xs={12} md={2.4}>
           <Paper sx={{ p: 2, height: '100%' }} elevation={1}>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>System</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -69,7 +69,7 @@ const SystemStats = () => {
             </Box>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} md={2.4}>
           <Paper sx={{ p: 2, height: '100%' }} elevation={1}>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>Database</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -102,7 +102,7 @@ const SystemStats = () => {
             </Box>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} md={2.4}>
           <Paper sx={{ p: 2, height: '100%' }} elevation={1}>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>Elasticsearch</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -113,7 +113,7 @@ const SystemStats = () => {
             </Box>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} md={2.4}>
           <Paper sx={{ p: 2, height: '100%' }} elevation={1}>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>App</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -130,6 +130,43 @@ const SystemStats = () => {
               <Tooltip title="Total Errors">
                 <Chip label={`Errors: ${stats.error_count}`} color={stats.error_count > 0 ? 'error' : 'success'} sx={{ width: '100%' }} />
               </Tooltip>
+            </Box>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={2.4}>
+          <Paper sx={{ p: 2, height: '100%' }} elevation={1}>
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>Cache</Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Box>
+              {stats.cache_stats && typeof stats.cache_stats === 'object' ? (
+                <>
+                  <Tooltip title={`Total Items: ${stats.cache_stats.total_items || 0}, Valid: ${stats.cache_stats.valid_items || 0}, Expired: ${stats.cache_stats.expired_items || 0}`}>
+                    <Chip 
+                      label={`Items: ${stats.cache_stats.total_items || 0}`} 
+                      color="info" 
+                      sx={{ width: '100%', mb: 1 }} 
+                    />
+                  </Tooltip>
+                  <Tooltip title={`Valid Items: ${stats.cache_stats.valid_items || 0}, Expired Items: ${stats.cache_stats.expired_items || 0}`}>
+                    <Chip 
+                      label={`Valid: ${stats.cache_stats.valid_items || 0}`} 
+                      color="success" 
+                      sx={{ width: '100%', mb: 1 }} 
+                    />
+                  </Tooltip>
+                  <Tooltip title={`Memory Usage: ${stats.cache_stats.memory_usage || 'N/A'}`}>
+                    <Chip 
+                      label={`Memory: ${stats.cache_stats.memory_usage || 'N/A'}`} 
+                      color="secondary" 
+                      sx={{ width: '100%' }} 
+                    />
+                  </Tooltip>
+                </>
+              ) : (
+                <Tooltip title="Cache Statistics">
+                  <Chip label="Cache: N/A" color="default" sx={{ width: '100%' }} />
+                </Tooltip>
+              )}
             </Box>
           </Paper>
         </Grid>

@@ -7,6 +7,7 @@ import (
 	"firewall/models"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v8/esapi"
@@ -22,18 +23,19 @@ type FilterResult struct {
 	Value  interface{} `json:"value,omitempty"`
 }
 
-const NumFilters = 4
+const NumFilters = 5
 
 // EvaluateFilters runs all filters concurrently and returns the final result
-func EvaluateFilters(ctx context.Context, ip, email, userAgent, country string) (FilterResult, error) {
+func EvaluateFilters(ctx context.Context, ip, email, userAgent, country, username string) (FilterResult, error) {
 	// Channel to collect filter results
-	results := make(chan FilterResult, 4)
+	results := make(chan FilterResult, 5)
 
 	// Start filters concurrently
 	go filterIP(ctx, ip, results)
 	go filterEmail(ctx, email, results)
 	go filterUserAgent(ctx, userAgent, results)
 	go filterCountry(ctx, country, results)
+	go filterUsername(ctx, username, results)
 
 	// Collect and evaluate the results
 	return collectResults(ctx, results)
@@ -113,17 +115,22 @@ func filterIP(ctx context.Context, ip string, result chan FilterResult) {
 // filterEmail runs the email filter
 func filterEmail(ctx context.Context, email string, result chan FilterResult) {
 	es := config.ESClient
-	query := `{
+
+	// First try exact match
+	exactQuery := `{
 		"query": {
-			"match": {
-				"email": "` + email + `"
+			"bool": {
+				"must": [
+					{"match": {"email": "` + email + `"}},
+					{"term": {"is_regex": false}}
+				]
 			}
 		}
 	}`
 
 	req := esapi.SearchRequest{
 		Index: []string{"emails"},
-		Body:  strings.NewReader(query),
+		Body:  strings.NewReader(exactQuery),
 	}
 
 	res, err := req.Do(ctx, es)
@@ -153,28 +160,87 @@ func filterEmail(ctx context.Context, email string, result chan FilterResult) {
 			} else {
 				result <- FilterResult{Result: "allowed", Field: "email", Value: email}
 			}
-		} else {
-			result <- FilterResult{Result: "allowed", Field: "email", Value: email}
+			return
 		}
-	} else {
-		result <- FilterResult{Result: "error", Reason: "no hits", Field: "email", Value: email}
 	}
+
+	// If no exact match, try regex patterns
+	regexQuery := `{
+		"query": {
+			"bool": {
+				"must": [
+					{"term": {"is_regex": true}}
+				]
+			}
+		}
+	}`
+
+	req = esapi.SearchRequest{
+		Index: []string{"emails"},
+		Body:  strings.NewReader(regexQuery),
+	}
+
+	res, err = req.Do(ctx, es)
+	if err != nil {
+		result <- FilterResult{Result: "error", Reason: "elasticsearch error", Field: "email", Value: email}
+		return
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+		result <- FilterResult{Result: "error", Reason: "decode error", Field: "email", Value: email}
+		return
+	}
+
+	if hits, found := r["hits"].(map[string]interface{}); found {
+		hitsList := hits["hits"].([]interface{})
+		for _, hit := range hitsList {
+			hitMap := hit.(map[string]interface{})
+			source := hitMap["_source"].(map[string]interface{})
+			pattern := source["email"].(string)
+			status := source["status"].(string)
+
+			// Check if email matches the regex pattern
+			matched, err := regexp.MatchString(pattern, email)
+			if err != nil {
+				continue // Skip invalid regex patterns
+			}
+			if matched {
+				if status == "denied" {
+					result <- FilterResult{Result: "denied", Reason: "email regex denied", Field: "email", Value: email}
+				} else if status == "whitelisted" {
+					result <- FilterResult{Result: "whitelisted", Reason: "email regex whitelisted", Field: "email", Value: email}
+				} else {
+					result <- FilterResult{Result: "allowed", Field: "email", Value: email}
+				}
+				return
+			}
+		}
+	}
+
+	// No matches found
+	result <- FilterResult{Result: "allowed", Field: "email", Value: email}
 }
 
 // filterUserAgent runs the user agent filter
 func filterUserAgent(ctx context.Context, userAgent string, result chan FilterResult) {
 	es := config.ESClient
-	query := `{
+
+	// First try exact match
+	exactQuery := `{
 		"query": {
-			"match": {
-				"user_agent": "` + userAgent + `"
+			"bool": {
+				"must": [
+					{"match": {"user_agent": "` + userAgent + `"}},
+					{"term": {"is_regex": false}}
+				]
 			}
 		}
 	}`
 
 	req := esapi.SearchRequest{
 		Index: []string{"user-agents"},
-		Body:  strings.NewReader(query),
+		Body:  strings.NewReader(exactQuery),
 	}
 
 	res, err := req.Do(ctx, es)
@@ -204,12 +270,66 @@ func filterUserAgent(ctx context.Context, userAgent string, result chan FilterRe
 			} else {
 				result <- FilterResult{Result: "allowed", Field: "user_agent", Value: userAgent}
 			}
-		} else {
-			result <- FilterResult{Result: "allowed", Field: "user_agent", Value: userAgent}
+			return
 		}
-	} else {
-		result <- FilterResult{Result: "error", Reason: "no hits", Field: "user_agent", Value: userAgent}
 	}
+
+	// If no exact match, try regex patterns
+	regexQuery := `{
+		"query": {
+			"bool": {
+				"must": [
+					{"term": {"is_regex": true}}
+				]
+			}
+		}
+	}`
+
+	req = esapi.SearchRequest{
+		Index: []string{"user-agents"},
+		Body:  strings.NewReader(regexQuery),
+	}
+
+	res, err = req.Do(ctx, es)
+	if err != nil {
+		result <- FilterResult{Result: "error", Reason: "elasticsearch error", Field: "user_agent", Value: userAgent}
+		return
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+		result <- FilterResult{Result: "error", Reason: "decode error", Field: "user_agent", Value: userAgent}
+		return
+	}
+
+	if hits, found := r["hits"].(map[string]interface{}); found {
+		hitsList := hits["hits"].([]interface{})
+		for _, hit := range hitsList {
+			hitMap := hit.(map[string]interface{})
+			source := hitMap["_source"].(map[string]interface{})
+			pattern := source["user_agent"].(string)
+			status := source["status"].(string)
+
+			// Check if user agent matches the regex pattern
+			matched, err := regexp.MatchString(pattern, userAgent)
+			if err != nil {
+				continue // Skip invalid regex patterns
+			}
+			if matched {
+				if status == "denied" {
+					result <- FilterResult{Result: "denied", Reason: "user_agent regex denied", Field: "user_agent", Value: userAgent}
+				} else if status == "whitelisted" {
+					result <- FilterResult{Result: "whitelisted", Reason: "user_agent regex whitelisted", Field: "user_agent", Value: userAgent}
+				} else {
+					result <- FilterResult{Result: "allowed", Field: "user_agent", Value: userAgent}
+				}
+				return
+			}
+		}
+	}
+
+	// No matches found
+	result <- FilterResult{Result: "allowed", Field: "user_agent", Value: userAgent}
 }
 
 // filterCountry runs the country filter
@@ -263,6 +383,116 @@ func filterCountry(ctx context.Context, country string, result chan FilterResult
 	}
 }
 
+// filterUsername runs the username filter
+func filterUsername(ctx context.Context, username string, result chan FilterResult) {
+	es := config.ESClient
+
+	// First try exact match
+	exactQuery := `{
+		"query": {
+			"bool": {
+				"must": [
+					{"match": {"username": "` + username + `"}},
+					{"term": {"is_regex": false}}
+				]
+			}
+		}
+	}`
+
+	req := esapi.SearchRequest{
+		Index: []string{"usernames"},
+		Body:  strings.NewReader(exactQuery),
+	}
+
+	res, err := req.Do(ctx, es)
+	if err != nil {
+		result <- FilterResult{Result: "error", Reason: "elasticsearch error", Field: "username", Value: username}
+		return
+	}
+	defer res.Body.Close()
+
+	var r map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+		result <- FilterResult{Result: "error", Reason: "decode error", Field: "username", Value: username}
+		return
+	}
+
+	if hits, found := r["hits"].(map[string]interface{}); found {
+		totalHits := hits["total"].(map[string]interface{})["value"].(float64)
+		if totalHits > 0 {
+			firstHit := hits["hits"].([]interface{})[0].(map[string]interface{})
+			source := firstHit["_source"].(map[string]interface{})
+			status := source["status"].(string)
+
+			if status == "denied" {
+				result <- FilterResult{Result: "denied", Reason: "username denied", Field: "username", Value: username}
+			} else if status == "whitelisted" {
+				result <- FilterResult{Result: "whitelisted", Reason: "username whitelisted", Field: "username", Value: username}
+			} else {
+				result <- FilterResult{Result: "allowed", Field: "username", Value: username}
+			}
+			return
+		}
+	}
+
+	// If no exact match, try regex patterns
+	regexQuery := `{
+		"query": {
+			"bool": {
+				"must": [
+					{"term": {"is_regex": true}}
+				]
+			}
+		}
+	}`
+
+	req = esapi.SearchRequest{
+		Index: []string{"usernames"},
+		Body:  strings.NewReader(regexQuery),
+	}
+
+	res, err = req.Do(ctx, es)
+	if err != nil {
+		result <- FilterResult{Result: "error", Reason: "elasticsearch error", Field: "username", Value: username}
+		return
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+		result <- FilterResult{Result: "error", Reason: "decode error", Field: "username", Value: username}
+		return
+	}
+
+	if hits, found := r["hits"].(map[string]interface{}); found {
+		hitsList := hits["hits"].([]interface{})
+		for _, hit := range hitsList {
+			hitMap := hit.(map[string]interface{})
+			source := hitMap["_source"].(map[string]interface{})
+			pattern := source["username"].(string)
+			status := source["status"].(string)
+
+			// Check if username matches the regex pattern
+			matched, err := regexp.MatchString(pattern, username)
+			if err != nil {
+				continue // Skip invalid regex patterns
+			}
+			if matched {
+				if status == "denied" {
+					result <- FilterResult{Result: "denied", Reason: "username regex denied", Field: "username", Value: username}
+				} else if status == "whitelisted" {
+					result <- FilterResult{Result: "whitelisted", Reason: "username regex whitelisted", Field: "username", Value: username}
+				} else {
+					result <- FilterResult{Result: "allowed", Field: "username", Value: username}
+				}
+				return
+			}
+		}
+	}
+
+	// No matches found
+	result <- FilterResult{Result: "allowed", Field: "username", Value: username}
+}
+
 // SyncCharsetToES synchronisiert eine CharsetRule zu Elasticsearch
 func SyncCharsetToES(charset models.CharsetRule) error {
 	ctx := context.Background()
@@ -307,12 +537,12 @@ func SyncUsernameToES(username models.UsernameRule) error {
 	ctx := context.Background()
 	_, err := config.ESClient.Index(
 		"usernames",
-		strings.NewReader(fmt.Sprintf(`{"id": %d, "username": "%s", "status": "%s"}`, username.ID, username.Username, username.Status)),
+		strings.NewReader(fmt.Sprintf(`{"id": %d, "username": "%s", "status": "%s", "is_regex": %t}`, username.ID, username.Username, username.Status, username.IsRegex)),
 		config.ESClient.Index.WithDocumentID(fmt.Sprintf("%d", username.ID)),
 		config.ESClient.Index.WithContext(ctx),
 	)
 	if err == nil {
-		log.Printf("Indexed Username: %d %s %s", username.ID, username.Username, username.Status)
+		log.Printf("Indexed Username: %d %s %s %t", username.ID, username.Username, username.Status, username.IsRegex)
 	}
 	return err
 }

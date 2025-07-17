@@ -36,6 +36,9 @@ func main() {
 	// Initialize all services
 	log.Println("Initializing services...")
 
+	// Initialize cache service
+	_ = services.GetCache()
+
 	// Initialize event processor
 	eventProcessor := services.GetEventProcessor()
 

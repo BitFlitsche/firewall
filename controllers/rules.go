@@ -95,6 +95,7 @@ func SystemStatsHandler(db *gorm.DB) gin.HandlerFunc {
 			"error_count":    errorCount,
 			"go_routines":    runtime.NumGoroutine(),
 			"pid":            pid,
+			"cache_stats":    services.GetCache().Stats(),
 		})
 	}
 }
@@ -454,6 +455,7 @@ func UpdateEmail(db *gorm.DB) gin.HandlerFunc {
 		}
 		email.Address = input.Address
 		email.Status = input.Status
+		email.IsRegex = input.IsRegex
 		if err := db.Save(&email).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update email"})
 			return
@@ -641,6 +643,7 @@ func UpdateUserAgent(db *gorm.DB) gin.HandlerFunc {
 		}
 		userAgent.UserAgent = input.UserAgent
 		userAgent.Status = input.Status
+		userAgent.IsRegex = input.IsRegex
 		if err := db.Save(&userAgent).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user agent"})
 			return
@@ -1171,6 +1174,7 @@ func UpdateUsernameRule(db *gorm.DB) gin.HandlerFunc {
 		}
 		rule.Username = input.Username
 		rule.Status = input.Status
+		rule.IsRegex = input.IsRegex
 		if err := db.Save(&rule).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update username rule"})
 			return

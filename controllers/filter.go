@@ -67,6 +67,16 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Generate a cache key based on the filter input
+		cache := services.GetCache()
+		cacheKey := "filter:" + input.IP + ":" + input.Email + ":" + input.UserAgent + ":" + input.Country + ":" + input.Username
+
+		// Try to get from cache first
+		if cached, exists := cache.Get(cacheKey); exists {
+			c.JSON(http.StatusOK, cached)
+			return
+		}
+
 		// Lade alle Charset-Regeln
 		var charsetRules []models.CharsetRule
 		db.Find(&charsetRules)
@@ -86,10 +96,12 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 			for _, rule := range charsetRules {
 				if rule.Charset == cs {
 					if rule.Status == "denied" {
+						cache.Set(cacheKey, gin.H{"result": "denied", "reason": "charset denied", "field": field, field: value}, 5*time.Minute)
 						c.JSON(200, gin.H{"result": "denied", "reason": "charset denied", "field": field, field: value})
 						return
 					}
 					if rule.Status == "whitelisted" {
+						cache.Set(cacheKey, gin.H{"result": "whitelisted", "reason": "charset whitelisted", "field": field, field: value}, 5*time.Minute)
 						c.JSON(200, gin.H{"result": "whitelisted", "reason": "charset whitelisted", "field": field, field: value})
 						return
 					}
@@ -98,27 +110,15 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Username-Filter: Prüfe gegen UsernameRule-Liste
-		if input.Username != "" {
-			var usernameRule models.UsernameRule
-			db.Where("username = ?", input.Username).First(&usernameRule)
-			if usernameRule.ID != 0 {
-				if usernameRule.Status == "denied" {
-					c.JSON(200, gin.H{"result": "denied", "reason": "username denied", "field": "username", "username": input.Username})
-					return
-				}
-				if usernameRule.Status == "whitelisted" {
-					c.JSON(200, gin.H{"result": "whitelisted", "reason": "username whitelisted", "field": "username", "username": input.Username})
-					return
-				}
-			}
-		}
+		// Note: Username filtering is now handled by Elasticsearch regex filtering
+		// This allows for both exact matches and regex patterns
 
 		// Timeout for the entire operation (e.g., 5 seconds)
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 		defer cancel()
 
 		// Call the service to evaluate filters
-		finalResult, err := services.EvaluateFilters(ctx, input.IP, input.Email, input.UserAgent, input.Country)
+		finalResult, err := services.EvaluateFilters(ctx, input.IP, input.Email, input.UserAgent, input.Country, input.Username)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				c.JSON(http.StatusGatewayTimeout, gin.H{"error": "request timed out"})
@@ -127,6 +127,9 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 			}
 			return
 		}
+
+		// Cache the result for 5 minutes
+		cache.Set(cacheKey, finalResult, 5*time.Minute)
 
 		c.JSON(http.StatusOK, finalResult)
 	}

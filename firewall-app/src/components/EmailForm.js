@@ -22,6 +22,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import TableSortLabel from '@mui/material/TableSortLabel';
 import TablePagination from '@mui/material/TablePagination';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
+import Tooltip from '@mui/material/Tooltip';
+import InfoIcon from '@mui/icons-material/Info';
 import { useLocation } from 'react-router-dom';
 
 // Separate filter controls component that only re-renders when filter values change
@@ -86,14 +90,14 @@ const FilterControls = memo(({
 });
 
 // Separate form component that only re-renders when form data changes
-const EmailFormComponent = memo(({ onSubmit, email, setEmail, status, setStatus, editId, setEditId }) => {
+const EmailFormComponent = memo(({ onSubmit, email, setEmail, status, setStatus, isRegex, setIsRegex, editId, setEditId }) => {
     return (
         <Box component="form" onSubmit={onSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'stretch', mb: 2 }}>
             <TextField
                 label="Email Address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter email address"
+                placeholder="Enter email address or regex pattern"
                 required
                 fullWidth
             />
@@ -108,11 +112,48 @@ const EmailFormComponent = memo(({ onSubmit, email, setEmail, status, setStatus,
                 <MenuItem value="allowed">Allowed</MenuItem>
                 <MenuItem value="whitelisted">Whitelisted</MenuItem>
             </TextField>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={isRegex}
+                            onChange={(e) => setIsRegex(e.target.checked)}
+                            color="primary"
+                        />
+                    }
+                    label="Use as Regular Expression"
+                />
+                <Tooltip 
+                    title={
+                        <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Regex Examples:
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>.*@spam\.com$</code> - Block all emails from spam.com
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>.*@.*\.ru$</code> - Block all .ru domain emails
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>^admin@.*</code> - Block admin emails from any domain
+                            </Typography>
+                            <Typography variant="body2" component="div">
+                                • <code>.*@gmail\.com$</code> - Block all Gmail addresses
+                            </Typography>
+                        </Box>
+                    }
+                    arrow
+                    placement="top"
+                >
+                    <InfoIcon color="action" sx={{ fontSize: 20 }} />
+                </Tooltip>
+            </Box>
             <Button type="submit" variant="contained" color="primary">
                 {editId ? 'Update Email' : 'Add Email'}
             </Button>
             {editId && (
-                <Button variant="outlined" color="secondary" onClick={() => { setEditId(null); setEmail(''); setStatus('denied'); }}>
+                <Button variant="outlined" color="secondary" onClick={() => { setEditId(null); setEmail(''); setStatus('denied'); setIsRegex(false); }}>
                     Cancel Edit
                 </Button>
             )}
@@ -122,6 +163,7 @@ const EmailFormComponent = memo(({ onSubmit, email, setEmail, status, setStatus,
     // Only re-render when form data changes
     return prevProps.email === nextProps.email && 
            prevProps.status === nextProps.status && 
+           prevProps.isRegex === nextProps.isRegex &&
            prevProps.editId === nextProps.editId;
 });
 
@@ -187,13 +229,14 @@ const EmailTable = memo(({
                                         Status
                                     </TableSortLabel>
                                 </TableCell>
+                                <TableCell>Regex</TableCell>
                                 <TableCell>Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {emails.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center">No Emails</TableCell>
+                                    <TableCell colSpan={5} align="center">No Emails</TableCell>
                                 </TableRow>
                             ) : (
                                 emails.map(emailItem => (
@@ -201,9 +244,14 @@ const EmailTable = memo(({
                                         <TableCell>{emailItem.ID}</TableCell>
                                         <TableCell>{emailItem.Address}</TableCell>
                                         <TableCell>{emailItem.Status}</TableCell>
+                                        <TableCell>{emailItem.IsRegex ? 'Yes' : 'No'}</TableCell>
                                         <TableCell>
-                                            <IconButton onClick={() => onEdit(emailItem)} size="small"><EditIcon /></IconButton>
-                                            <IconButton onClick={() => onDelete(emailItem.ID)} size="small" color="error"><DeleteIcon /></IconButton>
+                                            <IconButton onClick={() => onEdit(emailItem)} color="primary">
+                                                <EditIcon />
+                                            </IconButton>
+                                            <IconButton onClick={() => onDelete(emailItem.ID)} color="error">
+                                                <DeleteIcon />
+                                            </IconButton>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -229,6 +277,7 @@ const EmailTable = memo(({
 const EmailForm = () => {
     const [email, setEmail] = useState('');
     const [status, setStatus] = useState('denied');
+    const [isRegex, setIsRegex] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [refresh, setRefresh] = useState(false);
@@ -321,14 +370,15 @@ const EmailForm = () => {
         setError('');
         try {
             if (editId) {
-                await axiosInstance.put(`/email/${editId}`, { address: email, status });
+                await axiosInstance.put(`/email/${editId}`, { address: email, status, IsRegex: isRegex });
                 setMessage('Email updated successfully');
             } else {
-                await axiosInstance.post('/email', { address: email, status });
+                await axiosInstance.post('/email', { address: email, status, IsRegex: isRegex });
                 setMessage('Email added successfully');
             }
             setEmail('');
             setStatus('denied');
+            setIsRegex(false);
             setEditId(null);
             setRefresh(r => !r);
         } catch (error) {
@@ -375,6 +425,7 @@ const EmailForm = () => {
     const handleEdit = useCallback((emailItem) => {
         setEmail(emailItem.Address);
         setStatus(emailItem.Status);
+        setIsRegex(emailItem.IsRegex || false);
         setEditId(emailItem.ID);
     }, []);
 
@@ -401,6 +452,8 @@ const EmailForm = () => {
                     setEmail={setEmail}
                     status={status}
                     setStatus={setStatus}
+                    isRegex={isRegex}
+                    setIsRegex={setIsRegex}
                     editId={editId}
                     setEditId={setEditId}
                 />
