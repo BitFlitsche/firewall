@@ -45,6 +45,7 @@ const MaintenancePage = () => {
   const [messageType, setMessageType] = useState('info');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [systemStats, setSystemStats] = useState(null);
+  const [syncStatus, setSyncStatus] = useState({ full_sync_running: false });
 
   const fetchSystemStats = async () => {
     try {
@@ -55,10 +56,23 @@ const MaintenancePage = () => {
     }
   };
 
+  const fetchSyncStatus = async () => {
+    try {
+      const response = await axios.get('/sync/status');
+      setSyncStatus(response.data);
+    } catch (error) {
+      console.error('Failed to fetch sync status:', error);
+    }
+  };
+
   React.useEffect(() => {
     fetchSystemStats();
+    fetchSyncStatus();
     // Refresh stats every 30 seconds
-    const interval = setInterval(fetchSystemStats, 30000);
+    const interval = setInterval(() => {
+      fetchSystemStats();
+      fetchSyncStatus();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -314,6 +328,14 @@ const MaintenancePage = () => {
               {/* Sync Operations */}
               <Typography variant="subtitle2" gutterBottom sx={{ mt: 2, mb: 1 }}>
                 Data Synchronization
+                {syncStatus.full_sync_running && (
+                  <Chip 
+                    label="Full Sync Running" 
+                    color="warning" 
+                    size="small" 
+                    sx={{ ml: 1 }}
+                  />
+                )}
               </Typography>
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6}>
@@ -345,7 +367,7 @@ const MaintenancePage = () => {
                       color="primary"
                       startIcon={loading.fullSync ? <CircularProgress size={20} /> : <SyncIcon />}
                       onClick={() => setShowConfirmDialog(true)}
-                      disabled={loading.fullSync || loading.incrementalSync || loading.recreateIndex}
+                      disabled={loading.fullSync || loading.incrementalSync || loading.recreateIndex || syncStatus.full_sync_running}
                       fullWidth
                     >
                       {loading.fullSync ? 'Syncing...' : 'Full Sync'}
@@ -381,7 +403,7 @@ const MaintenancePage = () => {
                       color="primary"
                       startIcon={loading.incrementalSync ? <CircularProgress size={20} /> : <SyncIcon />}
                       onClick={handleIncrementalSync}
-                      disabled={loading.fullSync || loading.incrementalSync || loading.recreateIndex}
+                      disabled={loading.fullSync || loading.incrementalSync || loading.recreateIndex || syncStatus.full_sync_running}
                       fullWidth
                     >
                       {loading.incrementalSync ? 'Syncing...' : 'Incremental Sync'}
@@ -401,7 +423,7 @@ const MaintenancePage = () => {
                     color="secondary"
                     fullWidth
                     onClick={() => handleRecreateIndex('/ip/recreate-index', 'IP Address')}
-                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync}
+                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync || syncStatus.full_sync_running}
                   >
                     Recreate IP Index
                   </Button>
@@ -412,7 +434,7 @@ const MaintenancePage = () => {
                     color="secondary"
                     fullWidth
                     onClick={() => handleRecreateIndex('/emails/recreate-index', 'Email')}
-                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync}
+                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync || syncStatus.full_sync_running}
                   >
                     Recreate Email Index
                   </Button>
@@ -423,7 +445,7 @@ const MaintenancePage = () => {
                     color="secondary"
                     fullWidth
                     onClick={() => handleRecreateIndex('/user-agents/recreate-index', 'User Agent')}
-                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync}
+                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync || syncStatus.full_sync_running}
                   >
                     Recreate User Agent Index
                   </Button>
@@ -434,7 +456,7 @@ const MaintenancePage = () => {
                     color="secondary"
                     fullWidth
                     onClick={() => handleRecreateIndex('/countries/recreate-index', 'Country')}
-                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync}
+                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync || syncStatus.full_sync_running}
                   >
                     Recreate Country Index
                   </Button>
@@ -445,7 +467,7 @@ const MaintenancePage = () => {
                     color="secondary"
                     fullWidth
                     onClick={() => handleRecreateIndex('/charsets/recreate-index', 'Charset')}
-                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync}
+                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync || syncStatus.full_sync_running}
                   >
                     Recreate Charset Index
                   </Button>
@@ -456,7 +478,7 @@ const MaintenancePage = () => {
                     color="secondary"
                     fullWidth
                     onClick={() => handleRecreateIndex('/usernames/recreate-index', 'Username')}
-                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync}
+                    disabled={loading.recreateIndex || loading.fullSync || loading.incrementalSync || syncStatus.full_sync_running}
                   >
                     Recreate Username Index
                   </Button>

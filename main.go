@@ -45,6 +45,9 @@ func main() {
 	// Initialize retry queue
 	retryQueue := services.GetRetryQueue()
 
+	// Initialize distributed lock service
+	distributedLock := services.GetDistributedLock()
+
 	// Initialize scheduled sync
 	scheduledSync := services.GetScheduledSync()
 
@@ -99,6 +102,9 @@ func main() {
 
 	// Stop all services gracefully
 	log.Println("Stopping services...")
+
+	// Stop distributed lock service
+	distributedLock.Stop()
 
 	// Stop scheduled sync
 	scheduledSync.Stop()

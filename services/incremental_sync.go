@@ -3,6 +3,7 @@ package services
 import (
 	"firewall/config"
 	"firewall/models"
+	"fmt"
 	"log"
 	"time"
 )
@@ -256,6 +257,12 @@ func (is *IncrementalSync) SyncIncrementalUsernameRules() error {
 
 // SyncIncrementalAll syncs all data types incrementally
 func (is *IncrementalSync) SyncIncrementalAll() error {
+	// Check if full sync is running before starting incremental sync
+	if IsFullSyncRunning() {
+		log.Println("Skipping incremental sync - full sync in progress")
+		return nil
+	}
+
 	log.Println("Starting incremental sync to Elasticsearch...")
 
 	if err := is.SyncIncrementalIPs(); err != nil {
@@ -289,6 +296,30 @@ func (is *IncrementalSync) SyncIncrementalAll() error {
 // ForceFullSync performs a full sync and updates all sync timestamps
 func (is *IncrementalSync) ForceFullSync() error {
 	log.Println("Forcing full sync to Elasticsearch...")
+
+	// Get distributed lock service
+	distributedLock := GetDistributedLock()
+
+	// Try to acquire distributed lock for full sync
+	lockName := "full_sync"
+	lockTTL := config.AppConfig.Locking.FullSyncTTL
+
+	acquired, lockInfo := distributedLock.TryAcquireLock(lockName, lockTTL)
+	if !acquired {
+		return fmt.Errorf("full sync already in progress by another instance")
+	}
+
+	log.Printf("Acquired full sync lock (instance: %s)", lockInfo.Instance)
+
+	// Ensure lock is released after sync operation
+	defer func() {
+		distributedLock.ReleaseLock(lockName)
+		log.Printf("Released full sync lock")
+	}()
+
+	// Set full sync running flag to prevent incremental sync conflicts
+	SetFullSyncRunning(true)
+	defer SetFullSyncRunning(false)
 
 	// Perform full sync
 	if err := SyncAllData(); err != nil {

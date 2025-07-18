@@ -2,9 +2,17 @@ package services
 
 import (
 	"context"
+	"firewall/config"
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
+)
+
+// Global sync lock to prevent conflicts between full and incremental sync
+var (
+	syncLock          sync.Mutex
+	isFullSyncRunning int32 // atomic flag for full sync status
 )
 
 // ScheduledSync handles periodic sync operations
@@ -32,6 +40,20 @@ func GetScheduledSync() *ScheduledSync {
 		scheduledSync.start()
 	})
 	return scheduledSync
+}
+
+// IsFullSyncRunning returns true if a full sync is currently in progress
+func IsFullSyncRunning() bool {
+	return atomic.LoadInt32(&isFullSyncRunning) == 1
+}
+
+// SetFullSyncRunning sets the full sync status
+func SetFullSyncRunning(running bool) {
+	if running {
+		atomic.StoreInt32(&isFullSyncRunning, 1)
+	} else {
+		atomic.StoreInt32(&isFullSyncRunning, 0)
+	}
 }
 
 // start begins the scheduled sync operations
@@ -78,10 +100,36 @@ func (ss *ScheduledSync) runIncrementalSync(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	// Get distributed lock service
+	distributedLock := GetDistributedLock()
+
 	for {
 		select {
 		case <-ticker.C:
-			log.Println("Running incremental sync...")
+			// Check if full sync is running before starting incremental sync
+			if IsFullSyncRunning() {
+				log.Println("Skipping incremental sync - full sync in progress")
+				continue
+			}
+
+			// Try to acquire distributed lock for incremental sync
+			lockName := "incremental_sync"
+			lockTTL := config.AppConfig.Locking.IncrementalTTL
+
+			acquired, lockInfo := distributedLock.TryAcquireLock(lockName, lockTTL)
+			if !acquired {
+				log.Println("Skipping incremental sync - another instance is running it")
+				continue
+			}
+
+			log.Printf("Running incremental sync (lock: %s, instance: %s)...", lockInfo.LockID, lockInfo.Instance)
+
+			// Ensure lock is released after sync operation
+			defer func() {
+				distributedLock.ReleaseLock(lockName)
+				log.Printf("Released incremental sync lock")
+			}()
+
 			if err := ss.runIncrementalSyncOperation(); err != nil {
 				log.Printf("Incremental sync failed: %v", err)
 			} else {

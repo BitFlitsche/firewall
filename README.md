@@ -1,258 +1,216 @@
 # Firewall Application
 
-A full-stack firewall application that provides IP, email, user agent, and country-based filtering capabilities. The application consists of a Go backend API and a React frontend.
+A comprehensive firewall management system with Go backend and React frontend.
 
 ## Features
 
-- IP address filtering
-- Email address filtering
-- User agent filtering
-- Country-based filtering
-- Real-time request filtering
-- Elasticsearch integration for search capabilities
-- MariaDB for data persistence with connection pooling
-- Redis for caching
-- Kibana for data visualization
-- Configurable database connection pooling with monitoring
-- Comprehensive configuration management with Viper
+- **Real-time filtering** with support for IPs, emails, user agents, countries, charsets, and usernames
+- **Server-side filtering, sorting, and pagination** for optimal performance
+- **Elasticsearch integration** for advanced search capabilities
+- **Configurable distributed locking** for single and multi-instance deployments
+- **RESTful API** with comprehensive documentation
+- **Modern React frontend** with responsive design
+- **Database connection pooling** with monitoring
+- **Rate limiting** and security features
+- **Comprehensive logging** and metrics
 
-## Prerequisites
+## Quick Start
 
-- Go 1.24 or higher
-- Node.js 14 or higher
-- Docker and Docker Compose
-- Git
+### Prerequisites
 
-## Project Structure
+- Go 1.24+
+- Node.js 18+
+- MySQL 8.0+
+- Elasticsearch 8.0+ (optional)
+- Redis (optional, for distributed locking)
 
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd firewall
+   ```
+
+2. **Configure the application:**
+   ```bash
+   cp config/config.yaml.example config/config.yaml
+   # Edit config/config.yaml with your settings
+   ```
+
+3. **Build and run:**
+   ```bash
+   # Build the backend
+   go build -o firewall .
+   
+   # Install frontend dependencies
+   cd firewall-app
+   npm install
+   npm run build
+   cd ..
+   
+   # Run the application
+   ./firewall
+   ```
+
+## Configuration
+
+### Distributed Locking
+
+The application supports both single-instance and multi-instance deployments through configurable distributed locking:
+
+#### **Single Instance (Default)**
+```yaml
+locking:
+  enabled: false  # No Redis required
 ```
-firewall/
-├── config/         # Configuration files
-├── controllers/    # API controllers
-├── firewall-app/   # React frontend
-├── geoip/         # GeoIP integration
-├── middleware/    # HTTP middleware
-├── migrations/    # Database migrations
-├── models/        # Data models
-├── routes/        # API routes
-├── services/      # Business logic
-├── docker-compose.yml
-├── go.mod
-├── main.go
-└── README.md
+
+#### **Multi-Instance**
+```yaml
+locking:
+  enabled: true   # Requires Redis
+redis:
+  host: "your-redis-server"
+  port: 6379
 ```
 
-## Setup and Installation
+### Environment Variables
 
-1. Clone the repository:
+You can configure via environment variables:
+
 ```bash
-git clone <repository-url>
-cd firewall
-```
-
-2. Start the backend services using Docker Compose:
-```bash
-docker-compose up -d
-```
-This will start:
-- MariaDB (port 3306) with optimized connection settings
-- Redis (port 6379)
-- Elasticsearch (port 9200)
-- Kibana (port 5601)
-
-3. Configure the application (optional):
-```bash
-# Using environment variables
-export FIREWALL_SERVER_PORT=8081
+# Database
 export FIREWALL_DATABASE_HOST=localhost
-export FIREWALL_DATABASE_MAX_OPEN_CONNS=25
-export FIREWALL_DATABASE_MAX_IDLE_CONNS=5
+export FIREWALL_DATABASE_PORT=3306
+export FIREWALL_DATABASE_USER=user
+export FIREWALL_DATABASE_PASSWORD=password
+export FIREWALL_DATABASE_NAME=firewall
 
-# Or create a config.yaml file (see docs/viper_configuration.md)
+# Elasticsearch
+export FIREWALL_ELASTIC_HOSTS=http://localhost:9200
+
+# Redis (for distributed locking)
+export FIREWALL_REDIS_HOST=localhost
+export FIREWALL_REDIS_PORT=6379
+
+# Distributed Locking
+export FIREWALL_LOCKING_ENABLED=false
+export FIREWALL_LOCKING_INCREMENTAL_TTL=5m
+export FIREWALL_LOCKING_FULL_SYNC_TTL=30m
 ```
 
-4. Start the Go backend server:
-```bash
-go run main.go
-```
-The backend server will start on port 8081.
+## API Documentation
 
-5. Start the React frontend:
-```bash
-cd firewall-app
-npm install
-npm start
-```
-The frontend will be available at http://localhost:3000
+- **Swagger UI**: `http://localhost:8081/swagger/index.html`
+- **API Base URL**: `http://localhost:8081/api/v1`
 
-## API Endpoints
+### Key Endpoints
 
-### IP Management
-- `POST /ip` - Create new IP address
-- `GET /ips` - List all IP addresses
-
-### Email Management
-- `POST /email` - Create new email
-- `GET /emails` - List all emails
-
-### User Agent Management
-- `POST /user-agent` - Create new user agent
-- `GET /user-agents` - List all user agents
-
-### Country Management
-- `POST /country` - Create new country
-- `GET /countries` - List all countries
-
-### Filtering
-- `POST /filter` - Filter requests based on multiple criteria
-
-### System Monitoring
-- `GET /system-stats` - Get system statistics including connection pool metrics
-
-### Data Synchronization
-- `POST /sync/full` - Manual full sync of all data to Elasticsearch
-- `POST /sync/force` - Force immediate incremental sync
-- `POST /sync` - Legacy sync endpoint (use /sync/full instead)
-
-## API-Dokumentation (Swagger)
-
-Dieses Projekt nutzt [Swaggo](https://github.com/swaggo/swag) zur automatischen Generierung einer Swagger/OpenAPI-Dokumentation.
-
-### Beispiel für Handler-Kommentare
-```go
-// @Summary      Filtert IP, E-Mail, User-Agent und Land
-// @Description  Prüft, ob die angegebenen Werte erlaubt oder blockiert sind
-// @Tags         filter
-// @Accept       json
-// @Produce      json
-// @Param        filter  body      FilterRequest  true  "Filterdaten"
-// @Success      200     {object}  map[string]interface{}
-// @Failure      400     {object}  map[string]string
-// @Failure      504     {object}  map[string]string
-// @Failure      500     {object}  map[string]string
-// @Router       /filter [post]
-```
-
-### Swagger-Dokumentation generieren
-
-1. Installiere swag (falls noch nicht geschehen):
-   ```sh
-   go install github.com/swaggo/swag/cmd/swag@latest
-   ```
-2. Generiere die Swagger-Dokumentation:
-   ```sh
-   swag init
-   ```
-   Dadurch wird das Verzeichnis `docs/` mit der OpenAPI-Dokumentation erstellt.
-
-3. Starte das Backend und rufe die Swagger-UI im Browser auf:
-   ```
-   http://localhost:8081/swagger/index.html
-   ```
-
-Weitere Infos: [Swaggo Doku](https://github.com/swaggo/swag)
-
-## Usage
-
-1. Access the frontend at http://localhost:3000
-2. Use the interface to:
-   - Add new IP addresses, emails, user agents, or countries
-   - View existing entries
-   - Filter requests based on multiple criteria
+- `GET /api/v1/ips` - List IP addresses
+- `GET /api/v1/emails` - List email addresses
+- `GET /api/v1/useragents` - List user agents
+- `GET /api/v1/countries` - List countries
+- `GET /api/v1/charsets` - List charsets
+- `GET /api/v1/usernames` - List usernames
+- `GET /sync/status` - Check sync status and distributed locking
 
 ## Development
 
 ### Backend Development
-- The backend is written in Go using the Gin framework
-- Database migrations are handled through GORM
-- CORS is configured to allow frontend access
+
+```bash
+# Run with hot reload
+go run main.go
+
+# Run tests
+go test ./...
+
+# Build for production
+go build -ldflags="-s -w" -o firewall .
+```
 
 ### Frontend Development
-- Built with React
-- Uses Axios for API communication
-- Development server with hot reloading
-
-## Stopping the Application
-
-1. Stop the frontend:
-   - Press `Ctrl+C` in the frontend terminal
-
-2. Stop the backend:
-   - Press `Ctrl+C` in the backend terminal
-
-3. Stop Docker containers:
-```bash
-docker-compose down
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. Port conflicts:
-   - If port 8081 is already in use, you can change it in `main.go`
-   - If port 3000 is in use, React will automatically suggest an alternative port
-
-2. Database connection issues:
-   - Ensure Docker containers are running
-   - Check database credentials in configuration
-
-3. CORS issues:
-   - Verify CORS configuration in `routes/routes.go`
-   - Check browser console for specific error messages
-
-## Data Synchronization Strategy
-
-### Incremental Sync (Automatic)
-- **Frequency**: Every 30 seconds
-- **Behavior**: Only syncs records that have changed since the last sync
-- **Performance**: Efficient, minimal resource usage
-- **Use Case**: Normal operation, real-time updates
-
-### Full Sync (Manual)
-- **Trigger**: Manual via API endpoint or script
-- **Behavior**: Syncs all data from MySQL to Elasticsearch
-- **Performance**: Resource-intensive, should be used sparingly
-- **Use Cases**:
-  - Initial setup
-  - Data recovery after Elasticsearch issues
-  - Schema changes or data structure updates
-  - Troubleshooting incremental sync problems
-
-### Manual Full Sync Usage
 
 ```bash
-# Using curl
-curl -X POST http://localhost:8081/sync/full
+cd firewall-app
 
-# Using the provided script
-./scripts/manual_full_sync.sh
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# Build for production
+npm run build
 ```
 
-### Sync Monitoring
-- Check sync status: `GET /system-stats`
-- Monitor Elasticsearch health in system stats
-- View sync logs in application logs
+## Deployment
 
-## Security Considerations
+### Single Instance
 
-- The application is configured for development mode
-- For production:
-  - Enable Gin release mode
-  - Configure proper CORS settings
-  - Set up proper authentication
-  - Configure secure proxy settings
+For single-instance deployments, no additional infrastructure is required:
 
-## Lizenz
+```yaml
+# config/config.yaml
+locking:
+  enabled: false  # No Redis needed
+```
 
-Dieses Projekt ist Open Source und steht unter der MIT License.  
-Copyright (c) 2024 github.com/BitFlitsche
+### Multi-Instance
 
-Drittanbieter-Bibliotheken, wie z.B. der ElasticSearch Go Client, können unter anderen Lizenzen (z.B. Apache 2.0) stehen. Die entsprechenden Lizenztexte sind diesem Projekt beigelegt.
+For high-availability deployments:
+
+```yaml
+# config/config.yaml
+locking:
+  enabled: true
+redis:
+  host: "redis-cluster.example.com"
+  port: 6379
+```
+
+### Docker
+
+```bash
+# Build the application
+docker build -t firewall .
+
+# Run with configuration
+docker run -p 8081:8081 \
+  -v $(pwd)/config:/app/config \
+  firewall
+```
+
+## Monitoring
+
+### Health Checks
+
+- `GET /health` - Application health
+- `GET /sync/status` - Sync and locking status
+
+### Metrics
+
+The application provides metrics for:
+- Database connection pool status
+- Sync operation status
+- Distributed lock status (when enabled)
+- Request/response statistics
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Beiträge sind willkommen!  
-Wenn du Fehler findest, Ideen hast oder neue Features beitragen möchtest, erstelle gerne ein Issue oder einen Pull Request.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
 
-Vielen Dank für deine Unterstützung! 
+## Support
+
+For issues and questions:
+- Check the [documentation](docs/)
+- Review the [API documentation](http://localhost:8081/swagger/index.html)
+- Open an issue on GitHub 

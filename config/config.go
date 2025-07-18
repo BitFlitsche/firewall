@@ -23,6 +23,7 @@ type Config struct {
 	Redis    RedisConfig    `mapstructure:"redis"`
 	Logging  LoggingConfig  `mapstructure:"logging"`
 	Security SecurityConfig `mapstructure:"security"`
+	Locking  LockingConfig  `mapstructure:"locking"`
 }
 
 // ServerConfig holds server-related configuration
@@ -89,6 +90,15 @@ type SecurityConfig struct {
 	CORSHeaders     []string      `mapstructure:"cors_headers"`
 	RateLimit       int           `mapstructure:"rate_limit"`
 	RateLimitWindow time.Duration `mapstructure:"rate_limit_window"`
+}
+
+// LockingConfig holds distributed locking configuration
+type LockingConfig struct {
+	Enabled         bool          `mapstructure:"enabled"`
+	LockTTL         time.Duration `mapstructure:"lock_ttl"`
+	IncrementalTTL  time.Duration `mapstructure:"incremental_ttl"`
+	FullSyncTTL     time.Duration `mapstructure:"full_sync_ttl"`
+	CleanupInterval time.Duration `mapstructure:"cleanup_interval"`
 }
 
 // Global config instance
@@ -188,6 +198,13 @@ func setDefaults() {
 	viper.SetDefault("security.cors_headers", []string{"Content-Type", "Authorization"})
 	viper.SetDefault("security.rate_limit", 1000)
 	viper.SetDefault("security.rate_limit_window", "1m")
+
+	// Distributed locking defaults
+	viper.SetDefault("locking.enabled", false) // Disabled by default for single instances
+	viper.SetDefault("locking.lock_ttl", "5m")
+	viper.SetDefault("locking.incremental_ttl", "5m")
+	viper.SetDefault("locking.full_sync_ttl", "30m")
+	viper.SetDefault("locking.cleanup_interval", "10m")
 }
 
 // validateConfig validates the configuration

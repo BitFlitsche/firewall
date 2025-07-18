@@ -146,4 +146,26 @@ func SetupRoutes(r *gin.Engine) {
 			"items_cleared": itemsCleared,
 		})
 	})
+
+	// Sync status route
+	r.GET("/sync/status", func(c *gin.Context) {
+		distributedLock := services.GetDistributedLock()
+
+		// Get lock information
+		fullSyncLock, _ := distributedLock.GetLockInfo("full_sync")
+		incrementalSyncLock, _ := distributedLock.GetLockInfo("incremental_sync")
+
+		// Get all active locks
+		activeLocks, _ := distributedLock.GetActiveLocks()
+
+		c.JSON(http.StatusOK, gin.H{
+			"full_sync_running":           services.IsFullSyncRunning(),
+			"distributed_locking_enabled": config.AppConfig.Locking.Enabled,
+			"locks": gin.H{
+				"full_sync":        fullSyncLock,
+				"incremental_sync": incrementalSyncLock,
+				"active_locks":     activeLocks,
+			},
+		})
+	})
 }
