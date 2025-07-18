@@ -22,6 +22,7 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import { useLocation } from 'react-router-dom';
+import RecreateIndexButton from './RecreateIndexButton';
 
 // Memoized Form Component
 const CountryFormComponent = React.memo(({ 
@@ -120,6 +121,7 @@ const FilterControls = React.memo(({
         <Button variant="outlined" size="small" onClick={onReset}>
             Reset
         </Button>
+        <RecreateIndexButton indexType="country" />
     </Box>
 ));
 

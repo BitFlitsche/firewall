@@ -31,6 +31,7 @@ func SetupRoutes(r *gin.Engine) {
 	r.PUT("/ip/:id", controllers.UpdateIPAddress(db))
 	r.DELETE("/ip/:id", controllers.DeleteIPAddress(db))
 	r.GET("/ips/stats", controllers.GetIPStats(db))
+	r.POST("/ip/recreate-index", controllers.RecreateIPIndex(db))
 
 	// CRUD routes for Emails
 	r.POST("/email", controllers.CreateEmail(db))
@@ -38,6 +39,7 @@ func SetupRoutes(r *gin.Engine) {
 	r.PUT("/email/:id", controllers.UpdateEmail(db))
 	r.DELETE("/email/:id", controllers.DeleteEmail(db))
 	r.GET("/emails/stats", controllers.GetEmailStats(db))
+	r.POST("/emails/recreate-index", controllers.RecreateEmailIndex(db))
 
 	// CRUD routes for User Agents
 	r.POST("/user-agent", controllers.CreateUserAgent(db))
@@ -45,6 +47,7 @@ func SetupRoutes(r *gin.Engine) {
 	r.PUT("/user-agent/:id", controllers.UpdateUserAgent(db))
 	r.DELETE("/user-agent/:id", controllers.DeleteUserAgent(db))
 	r.GET("/user-agents/stats", controllers.GetUserAgentStats(db))
+	r.POST("/user-agents/recreate-index", controllers.RecreateUserAgentIndex(db))
 
 	// CRUD routes for Countries
 	r.POST("/country", controllers.CreateCountry(db))
@@ -52,6 +55,7 @@ func SetupRoutes(r *gin.Engine) {
 	r.PUT("/country/:id", controllers.UpdateCountry(db))
 	r.DELETE("/country/:id", controllers.DeleteCountry(db))
 	r.GET("/countries/stats", controllers.GetCountryStats(db))
+	r.POST("/countries/recreate-index", controllers.RecreateCountryIndex(db))
 
 	// CharsetRule CRUD
 	r.POST("/charset", controllers.CreateCharsetRule(db))
@@ -59,6 +63,7 @@ func SetupRoutes(r *gin.Engine) {
 	r.PUT("/charset/:id", controllers.UpdateCharsetRule(db))
 	r.DELETE("/charset/:id", controllers.DeleteCharsetRule(db))
 	r.GET("/charsets/stats", controllers.GetCharsetStats(db))
+	r.POST("/charsets/recreate-index", controllers.RecreateCharsetIndex(db))
 
 	// UsernameRule CRUD
 	r.POST("/username", controllers.CreateUsernameRule(db))
@@ -66,6 +71,7 @@ func SetupRoutes(r *gin.Engine) {
 	r.PUT("/username/:id", controllers.UpdateUsernameRule(db))
 	r.DELETE("/username/:id", controllers.DeleteUsernameRule(db))
 	r.GET("/usernames/stats", controllers.GetUsernameStats(db))
+	r.POST("/usernames/recreate-index", controllers.RecreateUsernameIndex(db))
 
 	// Filtering route
 	r.POST("/filter", controllers.FilterRequestHandler(db))

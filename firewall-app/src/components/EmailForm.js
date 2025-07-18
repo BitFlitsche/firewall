@@ -27,6 +27,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Tooltip from '@mui/material/Tooltip';
 import InfoIcon from '@mui/icons-material/Info';
 import { useLocation } from 'react-router-dom';
+import RecreateIndexButton from './RecreateIndexButton';
 
 // Separate filter controls component that only re-renders when filter values change
 const FilterControls = memo(({ 
@@ -469,6 +470,19 @@ const EmailForm = () => {
                         onStatusChange={handleStatusChange}
                         globalStatusCounts={globalStatusCounts}
                         onReset={handleReset}
+                    />
+                </Box>
+                
+                {/* Recreate Index Button */}
+                <Box sx={{ mb: 2 }}>
+                    <RecreateIndexButton 
+                        endpoint="/emails/recreate-index"
+                        listName="Email"
+                        onSuccess={(message) => {
+                            setMessage(message);
+                            setRefresh(r => !r);
+                        }}
+                        onError={(error) => setError(error)}
                     />
                 </Box>
                 

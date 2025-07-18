@@ -26,6 +26,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Tooltip from '@mui/material/Tooltip';
 import InfoIcon from '@mui/icons-material/Info';
 import { useLocation } from 'react-router-dom';
+import RecreateIndexButton from './RecreateIndexButton';
 
 // Memoized Form Component
 const UsernameFormComponent = memo(({ onSubmit, username, setUsername, status, setStatus, isRegex, setIsRegex, editId, setEditId }) => {
@@ -162,6 +163,7 @@ const FilterControls = React.memo(({
         <Button variant="outlined" size="small" onClick={onReset}>
             Reset
         </Button>
+        <RecreateIndexButton indexType="username" />
     </Box>
 ));
 

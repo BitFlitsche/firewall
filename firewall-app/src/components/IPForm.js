@@ -23,6 +23,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import TableSortLabel from '@mui/material/TableSortLabel';
 import TablePagination from '@mui/material/TablePagination';
 import { useLocation } from 'react-router-dom';
+import RecreateIndexButton from './RecreateIndexButton';
 
 // Memoized Form Component
 const IPFormComponent = React.memo(({ 
@@ -479,6 +480,19 @@ const IPForm = () => {
                 {/* Filter controls outside of table component */}
                 <Box sx={{ mt: 4, mb: 2 }}>
                     <FilterControls {...filterProps} />
+                </Box>
+                
+                {/* Recreate Index Button */}
+                <Box sx={{ mb: 2 }}>
+                    <RecreateIndexButton 
+                        endpoint="/ip/recreate-index"
+                        listName="IP Address"
+                        onSuccess={(message) => {
+                            setMessage(message);
+                            setRefresh(r => !r);
+                        }}
+                        onError={(error) => setError(error)}
+                    />
                 </Box>
                 
                 <IPTable {...tableProps} />

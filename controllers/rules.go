@@ -1232,3 +1232,159 @@ func GetUsernameStats(db *gorm.DB) gin.HandlerFunc {
 		})
 	}
 }
+
+// RecreateIPIndex löscht und erstellt den IP-Index neu
+// @Summary      IP-Index neu erstellen
+// @Description  Löscht den IP-Index und erstellt ihn mit allen Daten aus der Datenbank neu
+// @Tags         ip
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /ip/recreate-index [post]
+func RecreateIPIndex(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Delete existing index
+		if err := services.DeleteIPIndex(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete IP index: " + err.Error()})
+			return
+		}
+
+		// Recreate index with all data
+		if err := services.SyncAllIPs(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to recreate IP index: " + err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "IP index recreated successfully"})
+	}
+}
+
+// RecreateEmailIndex löscht und erstellt den Email-Index neu
+// @Summary      Email-Index neu erstellen
+// @Description  Löscht den Email-Index und erstellt ihn mit allen Daten aus der Datenbank neu
+// @Tags         emails
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /emails/recreate-index [post]
+func RecreateEmailIndex(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Delete existing index
+		if err := services.DeleteEmailIndex(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete email index: " + err.Error()})
+			return
+		}
+
+		// Recreate index with all data
+		if err := services.SyncAllEmails(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to recreate email index: " + err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Email index recreated successfully"})
+	}
+}
+
+// RecreateUserAgentIndex löscht und erstellt den User-Agent-Index neu
+// @Summary      User-Agent-Index neu erstellen
+// @Description  Löscht den User-Agent-Index und erstellt ihn mit allen Daten aus der Datenbank neu
+// @Tags         user-agents
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /user-agents/recreate-index [post]
+func RecreateUserAgentIndex(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Delete existing index
+		if err := services.DeleteUserAgentIndex(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user agent index: " + err.Error()})
+			return
+		}
+
+		// Recreate index with all data
+		if err := services.SyncAllUserAgents(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to recreate user agent index: " + err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "User agent index recreated successfully"})
+	}
+}
+
+// RecreateCountryIndex löscht und erstellt den Country-Index neu
+// @Summary      Country-Index neu erstellen
+// @Description  Löscht den Country-Index und erstellt ihn mit allen Daten aus der Datenbank neu
+// @Tags         countries
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /countries/recreate-index [post]
+func RecreateCountryIndex(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Delete existing index
+		if err := services.DeleteCountryIndex(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete country index: " + err.Error()})
+			return
+		}
+
+		// Recreate index with all data
+		if err := services.SyncAllCountries(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to recreate country index: " + err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Country index recreated successfully"})
+	}
+}
+
+// RecreateCharsetIndex löscht und erstellt den Charset-Index neu
+// @Summary      Charset-Index neu erstellen
+// @Description  Löscht den Charset-Index und erstellt ihn mit allen Daten aus der Datenbank neu
+// @Tags         charsets
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /charsets/recreate-index [post]
+func RecreateCharsetIndex(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Delete existing index
+		if err := services.DeleteCharsetIndex(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete charset index: " + err.Error()})
+			return
+		}
+
+		// Recreate index with all data
+		if err := services.SyncAllCharsetRules(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to recreate charset index: " + err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Charset index recreated successfully"})
+	}
+}
+
+// RecreateUsernameIndex löscht und erstellt den Username-Index neu
+// @Summary      Username-Index neu erstellen
+// @Description  Löscht den Username-Index und erstellt ihn mit allen Daten aus der Datenbank neu
+// @Tags         usernames
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /usernames/recreate-index [post]
+func RecreateUsernameIndex(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Delete existing index
+		if err := services.DeleteUsernameIndex(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete username index: " + err.Error()})
+			return
+		}
+
+		// Recreate index with all data
+		if err := services.SyncAllUsernameRules(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to recreate username index: " + err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Username index recreated successfully"})
+	}
+}

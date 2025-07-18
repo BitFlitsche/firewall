@@ -366,3 +366,123 @@ func SyncAllData() error {
 	log.Println("Full data sync completed")
 	return nil
 }
+
+// DeleteIPIndex deletes the IP index from Elasticsearch
+func DeleteIPIndex() error {
+	es := config.ESClient
+	req := esapi.IndicesDeleteRequest{
+		Index: []string{"ips"},
+	}
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() && res.StatusCode != 404 {
+		return fmt.Errorf("error deleting IP index: %s", res.String())
+	}
+
+	log.Println("IP index deleted successfully")
+	return nil
+}
+
+// DeleteEmailIndex deletes the email index from Elasticsearch
+func DeleteEmailIndex() error {
+	es := config.ESClient
+	req := esapi.IndicesDeleteRequest{
+		Index: []string{"emails"},
+	}
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() && res.StatusCode != 404 {
+		return fmt.Errorf("error deleting email index: %s", res.String())
+	}
+
+	log.Println("Email index deleted successfully")
+	return nil
+}
+
+// DeleteUserAgentIndex deletes the user agent index from Elasticsearch
+func DeleteUserAgentIndex() error {
+	es := config.ESClient
+	req := esapi.IndicesDeleteRequest{
+		Index: []string{"user-agents"},
+	}
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() && res.StatusCode != 404 {
+		return fmt.Errorf("error deleting user agent index: %s", res.String())
+	}
+
+	log.Println("User agent index deleted successfully")
+	return nil
+}
+
+// DeleteCountryIndex deletes the country index from Elasticsearch
+func DeleteCountryIndex() error {
+	es := config.ESClient
+	req := esapi.IndicesDeleteRequest{
+		Index: []string{"countries"},
+	}
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() && res.StatusCode != 404 {
+		return fmt.Errorf("error deleting country index: %s", res.String())
+	}
+
+	log.Println("Country index deleted successfully")
+	return nil
+}
+
+// DeleteCharsetIndex deletes the charset index from Elasticsearch
+func DeleteCharsetIndex() error {
+	es := config.ESClient
+	req := esapi.IndicesDeleteRequest{
+		Index: []string{"charsets"},
+	}
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() && res.StatusCode != 404 {
+		return fmt.Errorf("error deleting charset index: %s", res.String())
+	}
+
+	log.Println("Charset index deleted successfully")
+	return nil
+}
+
+// DeleteUsernameIndex deletes the username index from Elasticsearch
+func DeleteUsernameIndex() error {
+	es := config.ESClient
+	req := esapi.IndicesDeleteRequest{
+		Index: []string{"usernames"},
+	}
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() && res.StatusCode != 404 {
+		return fmt.Errorf("error deleting username index: %s", res.String())
+	}
+
+	log.Println("Username index deleted successfully")
+	return nil
+}
