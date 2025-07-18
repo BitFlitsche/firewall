@@ -64,10 +64,12 @@ func collectResults(ctx context.Context, result chan FilterResult) (FilterResult
 // filterIP runs the IP filter
 func filterIP(ctx context.Context, ip string, result chan FilterResult) {
 	es := config.ESClient
+
+	// IP filter uses simple exact match (no regex functionality)
 	query := `{
 		"query": {
-			"match": {
-				"address": "` + ip + `"
+			"term": {
+				"address.keyword": "` + ip + `"
 			}
 		}
 	}`

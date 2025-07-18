@@ -277,8 +277,79 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 		cache := services.GetCacheFactory()
 		cacheKey := "filter:" + input.IP + ":" + normalizedEmail + ":" + input.UserAgent + ":" + input.Country + ":" + input.Username
 
-		// Try to get from cache first
+		// Track cache hit status BEFORE processing
+		cacheHit := false
 		if cached, exists, _ := cache.Get(cacheKey); exists {
+			cacheHit = true
+
+			// Log cache hit asynchronously before returning
+			go func() {
+				trafficLogging := services.NewTrafficLoggingService(db)
+
+				// Convert to traffic logging format
+				trafficReq := services.FilterRequest{
+					IPAddress: input.IP,
+					Email:     input.Email,
+					UserAgent: input.UserAgent,
+					Username:  input.Username,
+					Country:   input.Country,
+					Content:   input.Content,
+				}
+
+				// Create filter result for cache hit
+				var trafficResult services.TrafficFilterResult
+
+				// Handle different cache result types
+				if filterResult, ok := cached.(services.FilterResult); ok {
+					// Cache contains FilterResult
+					trafficResult = services.TrafficFilterResult{
+						FinalResult: filterResult.Result,
+						FilterResults: map[string]interface{}{
+							"result": filterResult.Result,
+							"reason": filterResult.Reason,
+							"field":  filterResult.Field,
+							"value":  filterResult.Value,
+						},
+						ResponseTime: time.Since(startTime),
+						CacheHit:     true,
+					}
+				} else if ginResult, ok := cached.(gin.H); ok {
+					// Cache contains gin.H (from charset rules)
+					trafficResult = services.TrafficFilterResult{
+						FinalResult: ginResult["result"].(string),
+						FilterResults: map[string]interface{}{
+							"result": ginResult["result"],
+							"reason": ginResult["reason"],
+							"field":  ginResult["field"],
+							"value":  ginResult["value"],
+						},
+						ResponseTime: time.Since(startTime),
+						CacheHit:     true,
+					}
+				} else {
+					// Fallback for unknown cache types
+					trafficResult = services.TrafficFilterResult{
+						FinalResult: "allowed",
+						FilterResults: map[string]interface{}{
+							"result": "allowed",
+							"reason": "cached",
+						},
+						ResponseTime: time.Since(startTime),
+						CacheHit:     true,
+					}
+				}
+
+				// Create metadata
+				metadata := map[string]string{
+					"client_ip":      c.ClientIP(),
+					"user_agent_raw": c.GetHeader("User-Agent"),
+					"session_id":     c.GetHeader("X-Session-ID"),
+				}
+
+				// Log the request
+				trafficLogging.LogFilterRequest(trafficReq, trafficResult, metadata)
+			}()
+
 			c.JSON(http.StatusOK, cached)
 			return
 		}
@@ -351,12 +422,6 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 				Content:   input.Content,
 			}
 
-			// Determine cache hit
-			cacheHit := false
-			if _, exists, _ := cache.Get(cacheKey); exists {
-				cacheHit = true
-			}
-
 			// Create filter result
 			trafficResult := services.TrafficFilterResult{
 				FinalResult: finalResult.Result,
@@ -367,7 +432,7 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 					"value":  finalResult.Value,
 				},
 				ResponseTime: time.Since(startTime),
-				CacheHit:     cacheHit,
+				CacheHit:     cacheHit, // Use the cacheHit variable from above
 			}
 
 			// Create metadata
