@@ -261,7 +261,7 @@ const CharsetForm = () => {
 
     // Load global status counts
     useEffect(() => {
-        axios.get('/charsets/stats')
+        axios.get('/api/charsets/stats')
             .then(res => {
                 setGlobalStatusCounts({
                     allowed: res.data.allowed || 0,
@@ -289,7 +289,7 @@ const CharsetForm = () => {
         const fetchCharsets = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('/charsets', {
+                const response = await axios.get('/api/charsets', {
                     params: {
                         page: page + 1,
                         limit: rowsPerPage,
@@ -321,10 +321,10 @@ const CharsetForm = () => {
         setError('');
         try {
             if (editId) {
-                await axios.put(`/charset/${editId}`, { charset, status });
+                await axios.put(`/api/charset/${editId}`, { charset, status });
                 setMessage('Charset updated successfully');
             } else {
-                await axios.post('/charset', { charset, status });
+                await axios.post('/api/charset', { charset, status });
                 setMessage('Charset added successfully');
             }
             setCharset('');
@@ -381,7 +381,7 @@ const CharsetForm = () => {
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this charset?')) return;
         try {
-            await axios.delete(`/charset/${id}`);
+            await axios.delete(`/api/charset/${id}`);
             setMessage('Charset deleted');
             setRefresh(r => !r);
         } catch {

@@ -10,6 +10,7 @@ import CharsetForm from './components/CharsetForm';
 import UsernameForm from './components/UsernameForm';
 import SystemHealthPage from './pages/SystemHealthPage';
 import MaintenancePage from './pages/MaintenancePage';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import './components/styles.css';
 
 // MUI imports
@@ -33,12 +34,14 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import PersonIcon from '@mui/icons-material/Person';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import BuildIcon from '@mui/icons-material/Build';
+import AnalyticsIcon from '@mui/icons-material/Analytics';
 
 const drawerWidth = 220;
 
 const navItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'System Health', icon: <HealthAndSafetyIcon />, path: '/system-health' },
+  { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
   { text: 'Maintenance', icon: <BuildIcon />, path: '/maintenance' },
   { text: 'Charset List', icon: <DnsIcon />, path: '/charset-list' },
   { text: 'Country List', icon: <DnsIcon />, path: '/country-list' },
@@ -116,6 +119,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/system-health" element={<SystemHealthPage />} />
+          <Route path="/analytics" element={<AnalyticsDashboard />} />
           <Route path="/maintenance" element={<MaintenancePage />} />
           <Route path="/ip-list" element={<IPForm />} />
           <Route path="/email-list" element={<EmailForm />} />

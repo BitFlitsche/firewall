@@ -197,12 +197,12 @@ const DashboardStats = () => {
 
       // Lade alle Stats-Endpunkte
       const [ipsRes, emailsRes, userAgentsRes, countriesRes, charsetsRes, usernamesRes] = await Promise.all([
-        axios.get('/ips/stats'),
-        axios.get('/emails/stats'),
-        axios.get('/user-agents/stats'),
-        axios.get('/countries/stats'),
-        axios.get('/charsets/stats'),
-        axios.get('/usernames/stats')
+        axios.get('/api/ips/stats'),
+        axios.get('/api/emails/stats'),
+        axios.get('/api/user-agents/stats'),
+        axios.get('/api/countries/stats'),
+        axios.get('/api/charsets/stats'),
+        axios.get('/api/usernames/stats')
       ]);
 
       setStats({

@@ -49,7 +49,7 @@ const MaintenancePage = () => {
 
   const fetchSystemStats = async () => {
     try {
-      const response = await axios.get('/system-stats');
+      const response = await axios.get('/api/system-stats');
       setSystemStats(response.data);
     } catch (error) {
       console.error('Failed to fetch system stats:', error);

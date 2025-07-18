@@ -311,7 +311,7 @@ const EmailForm = () => {
 
     // Load global status counts
     useEffect(() => {
-        axiosInstance.get('/emails/stats')
+        axiosInstance.get('/api/emails/stats')
             .then(res => {
                 setGlobalStatusCounts({
                     allowed: res.data.allowed || 0,
@@ -339,7 +339,7 @@ const EmailForm = () => {
         const fetchEmails = async () => {
             setLoading(true);
             try {
-                const response = await axiosInstance.get('/emails', {
+                const response = await axiosInstance.get('/api/emails', {
                     params: {
                         page: page + 1,
                         limit: rowsPerPage,
@@ -371,10 +371,10 @@ const EmailForm = () => {
         setError('');
         try {
             if (editId) {
-                await axiosInstance.put(`/email/${editId}`, { address: email, status, IsRegex: isRegex });
+                await axiosInstance.put(`/api/email/${editId}`, { address: email, status, IsRegex: isRegex });
                 setMessage('Email updated successfully');
             } else {
-                await axiosInstance.post('/email', { address: email, status, IsRegex: isRegex });
+                await axiosInstance.post('/api/email', { address: email, status, IsRegex: isRegex });
                 setMessage('Email added successfully');
             }
             setEmail('');
@@ -433,7 +433,7 @@ const EmailForm = () => {
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this email?')) return;
         try {
-            await axiosInstance.delete(`/email/${id}`);
+            await axiosInstance.delete(`/api/email/${id}`);
             setMessage('Email deleted');
             setRefresh(r => !r);
         } catch {

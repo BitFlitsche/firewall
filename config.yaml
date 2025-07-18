@@ -47,6 +47,10 @@ logging:
   max_backups: 3
   max_age: 28  # days
   compress: true
+  traffic_logging: true  # Enable traffic logging
+  analytics_enabled: true  # Enable analytics processing
+  retention_days: 90  # How long to keep traffic logs
+  aggregation_schedule: "hourly"  # How often to run aggregations
 
 security:
   cors_enabled: true

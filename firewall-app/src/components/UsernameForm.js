@@ -311,7 +311,7 @@ const UsernameForm = () => {
 
     // Load global status counts
     useEffect(() => {
-        axios.get('/usernames/stats')
+        axios.get('/api/usernames/stats')
             .then(res => {
                 setGlobalStatusCounts({
                     allowed: res.data.allowed || 0,
@@ -347,7 +347,7 @@ const UsernameForm = () => {
         const fetchUsernames = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('/usernames', {
+                const response = await axios.get('/api/usernames', {
                     params: {
                         page: page + 1,
                         limit: rowsPerPage,
@@ -379,10 +379,10 @@ const UsernameForm = () => {
         setError('');
         try {
             if (editId) {
-                await axios.put(`/username/${editId}`, { username, status, IsRegex: isRegex });
+                await axios.put(`/api/username/${editId}`, { username, status, IsRegex: isRegex });
                 setMessage('Username updated successfully');
             } else {
-                await axios.post('/username', { username, status, IsRegex: isRegex });
+                await axios.post('/api/username', { username, status, IsRegex: isRegex });
                 setMessage('Username added successfully');
             }
             setUsername('');
@@ -398,7 +398,7 @@ const UsernameForm = () => {
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this username?')) return;
         try {
-            await axios.delete(`/username/${id}`);
+            await axios.delete(`/api/username/${id}`);
             setMessage('Username deleted');
             setRefresh(r => !r);
         } catch {

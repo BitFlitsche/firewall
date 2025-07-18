@@ -262,6 +262,8 @@ func detectCharset(s string) string {
 // FilterRequestHandler prüft jetzt auch Charset-Regeln
 func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		startTime := time.Now()
+
 		var input FilterRequest
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
@@ -334,6 +336,50 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 
 		// Cache the result for 5 minutes
 		cache.Set(cacheKey, finalResult, 5*time.Minute)
+
+		// Log the traffic asynchronously
+		go func() {
+			trafficLogging := services.NewTrafficLoggingService(db)
+
+			// Convert to traffic logging format
+			trafficReq := services.FilterRequest{
+				IPAddress: input.IP,
+				Email:     input.Email,
+				UserAgent: input.UserAgent,
+				Username:  input.Username,
+				Country:   input.Country,
+				Content:   input.Content,
+			}
+
+			// Determine cache hit
+			cacheHit := false
+			if _, exists, _ := cache.Get(cacheKey); exists {
+				cacheHit = true
+			}
+
+			// Create filter result
+			trafficResult := services.TrafficFilterResult{
+				FinalResult: finalResult.Result,
+				FilterResults: map[string]interface{}{
+					"result": finalResult.Result,
+					"reason": finalResult.Reason,
+					"field":  finalResult.Field,
+					"value":  finalResult.Value,
+				},
+				ResponseTime: time.Since(startTime),
+				CacheHit:     cacheHit,
+			}
+
+			// Create metadata
+			metadata := map[string]string{
+				"client_ip":      c.ClientIP(),
+				"user_agent_raw": c.GetHeader("User-Agent"),
+				"session_id":     c.GetHeader("X-Session-ID"),
+			}
+
+			// Log the request
+			trafficLogging.LogFilterRequest(trafficReq, trafficResult, metadata)
+		}()
 
 		c.JSON(http.StatusOK, finalResult)
 	}

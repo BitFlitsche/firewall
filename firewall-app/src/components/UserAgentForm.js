@@ -311,7 +311,7 @@ const UserAgentForm = () => {
 
     // Load global status counts
     useEffect(() => {
-        axios.get('/user-agents/stats')
+        axios.get('/api/user-agents/stats')
             .then(res => {
                 setGlobalStatusCounts({
                     allowed: res.data.allowed || 0,
@@ -341,7 +341,7 @@ const UserAgentForm = () => {
         const fetchUserAgents = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('/user-agents', {
+                const response = await axios.get('/api/user-agents', {
                     params: {
                         page: page + 1,
                         limit: rowsPerPage,
@@ -373,10 +373,10 @@ const UserAgentForm = () => {
         setError('');
         try {
             if (editId) {
-                await axios.put(`/user-agent/${editId}`, { UserAgent: userAgent, Status: status, IsRegex: isRegex });
+                await axios.put(`/api/user-agent/${editId}`, { UserAgent: userAgent, Status: status, IsRegex: isRegex });
                 setMessage('User Agent updated successfully');
             } else {
-                await axios.post('/user-agent', { UserAgent: userAgent, Status: status, IsRegex: isRegex });
+                await axios.post('/api/user-agent', { UserAgent: userAgent, Status: status, IsRegex: isRegex });
                 setMessage('User Agent added successfully');
             }
             setUserAgent('');
@@ -437,7 +437,7 @@ const UserAgentForm = () => {
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this User Agent?')) return;
         try {
-            await axios.delete(`/user-agent/${id}`);
+            await axios.delete(`/api/user-agent/${id}`);
             setMessage('User Agent deleted');
             setRefresh(r => !r);
         } catch {

@@ -138,6 +138,16 @@ func SetupRoutes(r *gin.Engine) {
 	api.POST("/sync/charsets", controllers.SyncCharsetsHandler(db))
 	api.POST("/sync/usernames", controllers.SyncUsernamesHandler(db))
 
+	// Analytics routes
+	api.GET("/analytics/traffic", controllers.GetTrafficAnalytics(db))
+	api.GET("/analytics/relationships", controllers.GetDataRelationships(db))
+	api.GET("/analytics/aggregations", controllers.GetAnalyticsAggregations(db))
+	api.GET("/analytics/logs", controllers.GetTrafficLogs(db))
+	api.GET("/analytics/top-data/:type", controllers.GetTopData(db))
+	api.GET("/analytics/insights", controllers.GetRelationshipInsights(db))
+	api.GET("/analytics/stats", controllers.GetTrafficStats(db))
+	api.POST("/analytics/cleanup", controllers.CleanupOldLogs(db))
+
 	// Cache management route
 	api.POST("/cache/flush", func(c *gin.Context) {
 		cache := services.GetCacheFactory()

@@ -17,6 +17,9 @@ func Migrate(db *gorm.DB) error {
 		&models.CharsetRule{},
 		&models.UsernameRule{},
 		&models.SyncTracker{},
+		&models.TrafficLog{},
+		&models.DataRelationship{},
+		&models.AnalyticsAggregation{},
 	)
 	if err != nil {
 		return err
@@ -65,6 +68,25 @@ func Migrate(db *gorm.DB) error {
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_charset_status_charset_id ON charset_rules (status, charset, id)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_status_id ON username_rules (status, id)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_status_username_id ON username_rules (status, username, id)")
+
+	// Traffic logging indexes
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_traffic_logs_timestamp ON traffic_logs (timestamp)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_traffic_logs_ip_address ON traffic_logs (ip_address)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_traffic_logs_email ON traffic_logs (email)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_traffic_logs_final_result ON traffic_logs (final_result)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_traffic_logs_request_id ON traffic_logs (request_id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_traffic_logs_timestamp_final_result ON traffic_logs (timestamp, final_result)")
+
+	// Data relationships indexes
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_data_relationships_relationship_type ON data_relationships (relationship_type)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_data_relationships_ip_address ON data_relationships (ip_address)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_data_relationships_email ON data_relationships (email)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_data_relationships_timestamp ON data_relationships (timestamp)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_data_relationships_frequency ON data_relationships (frequency)")
+
+	// Analytics aggregations indexes
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_analytics_aggregations_date_type ON analytics_aggregations (aggregation_date, aggregation_type)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_analytics_aggregations_type ON analytics_aggregations (aggregation_type)")
 
 	return nil
 }

@@ -266,7 +266,7 @@ const CountryForm = () => {
 
     // Load global status counts
     useEffect(() => {
-        axios.get('/countries/stats')
+        axios.get('/api/countries/stats')
             .then(res => {
                 setGlobalStatusCounts({
                     allowed: res.data.allowed || 0,
@@ -302,7 +302,7 @@ const CountryForm = () => {
         const fetchCountries = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('/countries', {
+                const response = await axios.get('/api/countries', {
                     params: {
                         page: page + 1,
                         limit: rowsPerPage,
@@ -334,10 +334,10 @@ const CountryForm = () => {
         setError('');
         try {
             if (editId) {
-                await axios.put(`/country/${editId}`, { code: country, status });
+                await axios.put(`/api/country/${editId}`, { Code: country, Status: status });
                 setMessage('Country updated successfully');
             } else {
-                await axios.post('/country', { code: country, status });
+                await axios.post('/api/country', { Code: country, Status: status });
                 setMessage('Country added successfully');
             }
             setCountry('');
@@ -352,7 +352,7 @@ const CountryForm = () => {
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this country?')) return;
         try {
-            await axios.delete(`/country/${id}`);
+            await axios.delete(`/api/country/${id}`);
             setMessage('Country deleted');
             setRefresh(r => !r);
         } catch {

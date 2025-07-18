@@ -39,7 +39,7 @@ const FilterForm = () => {
         setMessage('');
         setError('');
         try {
-            const response = await axios.post('/filter', filterData);
+            const response = await axios.post('/api/filter', filterData);
             setMessage(`Filter applied! Result: ${JSON.stringify(response.data)}`);
             setFilterData({
                 ip: '',

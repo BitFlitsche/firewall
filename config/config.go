@@ -74,13 +74,17 @@ type RedisConfig struct {
 
 // LoggingConfig holds logging-related configuration
 type LoggingConfig struct {
-	Level      string `mapstructure:"level"`
-	Format     string `mapstructure:"format"`
-	Output     string `mapstructure:"output"`
-	MaxSize    int    `mapstructure:"max_size"`
-	MaxBackups int    `mapstructure:"max_backups"`
-	MaxAge     int    `mapstructure:"max_age"`
-	Compress   bool   `mapstructure:"compress"`
+	Level               string `mapstructure:"level"`
+	Format              string `mapstructure:"format"`
+	Output              string `mapstructure:"output"`
+	MaxSize             int    `mapstructure:"max_size"`
+	MaxBackups          int    `mapstructure:"max_backups"`
+	MaxAge              int    `mapstructure:"max_age"`
+	Compress            bool   `mapstructure:"compress"`
+	TrafficLogging      bool   `mapstructure:"traffic_logging"`
+	AnalyticsEnabled    bool   `mapstructure:"analytics_enabled"`
+	RetentionDays       int    `mapstructure:"retention_days"`
+	AggregationSchedule string `mapstructure:"aggregation_schedule"`
 }
 
 // SecurityConfig holds security-related configuration
@@ -200,6 +204,10 @@ func setDefaults() {
 	viper.SetDefault("logging.max_backups", 3)
 	viper.SetDefault("logging.max_age", 28)
 	viper.SetDefault("logging.compress", true)
+	viper.SetDefault("logging.traffic_logging", false)
+	viper.SetDefault("logging.analytics_enabled", false)
+	viper.SetDefault("logging.retention_days", 90)
+	viper.SetDefault("logging.aggregation_schedule", "hourly")
 
 	// Security defaults
 	viper.SetDefault("security.cors_enabled", true)

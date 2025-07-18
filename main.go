@@ -51,6 +51,13 @@ func main() {
 	// Initialize scheduled sync
 	scheduledSync := services.GetScheduledSync()
 
+	// Initialize traffic logging and analytics services
+	trafficLogging := services.NewTrafficLoggingService(config.DB)
+	analyticsService := services.NewAnalyticsService(config.DB, trafficLogging)
+
+	// Start analytics aggregation scheduler in background
+	go analyticsService.RunScheduledAggregations()
+
 	// Initial sync of existing data
 	log.Println("Performing initial sync of existing data...")
 	if err := services.SyncAllData(); err != nil {

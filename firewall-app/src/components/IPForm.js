@@ -267,7 +267,7 @@ const IPForm = () => {
 
     // Load global status counts
     useEffect(() => {
-        axiosInstance.get('/ips/stats')
+        axiosInstance.get('/api/ips/stats')
             .then(res => {
                 setGlobalStatusCounts({
                     allowed: res.data.allowed || 0,
@@ -303,7 +303,7 @@ const IPForm = () => {
         const fetchIPs = async () => {
             setLoading(true);
             try {
-                const response = await axiosInstance.get('/ips', {
+                const response = await axiosInstance.get('/api/ips', {
                     params: {
                         page: page + 1,
                         limit: rowsPerPage,
@@ -335,13 +335,13 @@ const IPForm = () => {
         setError('');
         try {
             if (editId) {
-                await axiosInstance.put(`/ip/${editId}`, {
+                await axiosInstance.put(`/api/ip/${editId}`, {
                     Address: ip,
                     Status: status
                 });
                 setMessage('IP address updated successfully');
             } else {
-                await axiosInstance.post('/ip', {
+                await axiosInstance.post('/api/ip', {
                     Address: ip,
                     Status: status
                 });
@@ -359,7 +359,7 @@ const IPForm = () => {
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this IP address?')) return;
         try {
-            await axiosInstance.delete(`/ip/${id}`);
+            await axiosInstance.delete(`/api/ip/${id}`);
             setMessage('IP address deleted');
             setRefresh(r => !r);
         } catch {

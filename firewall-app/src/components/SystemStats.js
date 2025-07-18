@@ -17,7 +17,7 @@ const SystemStats = () => {
     let mounted = true;
     const fetchStats = async () => {
       try {
-        const res = await fetch('/system-stats');
+        const res = await fetch('/api/system-stats');
         const data = await res.json();
         if (mounted) setStats(data);
       } catch (err) {
