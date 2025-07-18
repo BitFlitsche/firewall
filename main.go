@@ -36,8 +36,8 @@ func main() {
 	// Initialize all services
 	log.Println("Initializing services...")
 
-	// Initialize cache service
-	_ = services.GetCache()
+	// Initialize cache factory (switches between in-memory and distributed based on config)
+	_ = services.GetCacheFactory()
 
 	// Initialize event processor
 	eventProcessor := services.GetEventProcessor()

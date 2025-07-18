@@ -96,7 +96,14 @@ func SystemStatsHandler(db *gorm.DB) gin.HandlerFunc {
 			"error_count":    errorCount,
 			"go_routines":    runtime.NumGoroutine(),
 			"pid":            pid,
-			"cache_stats":    services.GetCache().Stats(),
+			"cache_stats": func() map[string]interface{} {
+				stats, err := services.GetCacheFactory().Stats()
+				if err != nil {
+					return map[string]interface{}{"error": err.Error()}
+				}
+				return stats
+			}(),
+			"cache_type": services.GetCacheFactory().GetCacheType(),
 		})
 	}
 }

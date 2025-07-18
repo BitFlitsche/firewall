@@ -7,11 +7,11 @@ import (
 
 // ExampleCacheUsage demonstrates how to use the cache service
 func ExampleCacheUsage() {
-	cache := GetCache()
+	cache := GetCacheFactory()
 
 	// Example 1: Cache filter results with 5-minute TTL
 	filterKey := cache.FilterKey("ip", "192.168.1.1")
-	if cached, exists := cache.Get(filterKey); exists {
+	if cached, exists, _ := cache.Get(filterKey); exists {
 		// Use cached result
 		fmt.Printf("Using cached filter result: %v\n", cached)
 	} else {
@@ -25,7 +25,7 @@ func ExampleCacheUsage() {
 
 	// Example 2: Cache list data with 2-minute TTL
 	listKey := cache.ListKey("ip", "1", "10", "", "all")
-	if cached, exists := cache.Get(listKey); exists {
+	if cached, exists, _ := cache.Get(listKey); exists {
 		// Use cached list
 		fmt.Printf("Using cached list: %v\n", cached)
 	} else {
@@ -39,7 +39,7 @@ func ExampleCacheUsage() {
 
 	// Example 3: Cache system stats with 30-second TTL
 	statsKey := cache.StatsKey("system")
-	if cached, exists := cache.Get(statsKey); exists {
+	if cached, exists, _ := cache.Get(statsKey); exists {
 		// Use cached stats
 		fmt.Printf("Using cached stats: %v\n", cached)
 	} else {
@@ -54,14 +54,14 @@ func ExampleCacheUsage() {
 
 // Example controller function with caching
 func ExampleControllerWithCache() {
-	cache := GetCache()
+	cache := GetCacheFactory()
 
 	// Cache key for this specific request
 	cacheKey := fmt.Sprintf("api:ips:page:%d:limit:%d:search:%s:status:%s",
 		1, 10, "192.168", "all")
 
 	// Try to get from cache first
-	if cached, exists := cache.Get(cacheKey); exists {
+	if cached, exists, _ := cache.Get(cacheKey); exists {
 		// Return cached response
 		fmt.Printf("Cache hit: %v\n", cached)
 		return
@@ -79,7 +79,7 @@ func ExampleControllerWithCache() {
 
 // Example of cache invalidation in update operations
 func ExampleCacheInvalidation() {
-	cache := GetCache()
+	cache := GetCacheFactory()
 
 	// After updating an IP address
 	// This would be called in your update controller

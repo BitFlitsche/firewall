@@ -44,7 +44,7 @@ func GetCache() *Cache {
 }
 
 // Set stores a value in the cache with TTL
-func (c *Cache) Set(key string, value interface{}, ttl time.Duration) {
+func (c *Cache) Set(key string, value interface{}, ttl time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -53,16 +53,17 @@ func (c *Cache) Set(key string, value interface{}, ttl time.Duration) {
 		ExpiresAt: time.Now().Add(ttl),
 		CreatedAt: time.Now(),
 	}
+	return nil
 }
 
 // Get retrieves a value from the cache
-func (c *Cache) Get(key string) (interface{}, bool) {
+func (c *Cache) Get(key string) (interface{}, bool, error) {
 	c.mu.RLock()
 	item, exists := c.data[key]
 	c.mu.RUnlock()
 
 	if !exists {
-		return nil, false
+		return nil, false, nil
 	}
 
 	// Check if expired
@@ -70,21 +71,22 @@ func (c *Cache) Get(key string) (interface{}, bool) {
 		c.mu.Lock()
 		delete(c.data, key)
 		c.mu.Unlock()
-		return nil, false
+		return nil, false, nil
 	}
 
-	return item.Value, true
+	return item.Value, true, nil
 }
 
 // Delete removes a specific key from cache
-func (c *Cache) Delete(key string) {
+func (c *Cache) Delete(key string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.data, key)
+	return nil
 }
 
 // InvalidateByType removes all cached items for a specific data type
-func (c *Cache) InvalidateByType(dataType string) {
+func (c *Cache) InvalidateByType(dataType string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -99,10 +101,11 @@ func (c *Cache) InvalidateByType(dataType string) {
 	if count > 0 {
 		log.Printf("Cache: Invalidated %d items for type '%s'", count, dataType)
 	}
+	return nil
 }
 
 // InvalidatePattern removes all cached items matching a pattern
-func (c *Cache) InvalidatePattern(pattern string) {
+func (c *Cache) InvalidatePattern(pattern string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -117,20 +120,22 @@ func (c *Cache) InvalidatePattern(pattern string) {
 	if count > 0 {
 		log.Printf("Cache: Invalidated %d items matching pattern '%s'", count, pattern)
 	}
+	return nil
 }
 
 // Clear removes all items from cache
-func (c *Cache) Clear() {
+func (c *Cache) Clear() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	count := len(c.data)
 	c.data = make(map[string]CacheItem)
 	log.Printf("Cache: Cleared all %d items", count)
+	return nil
 }
 
 // Stats returns cache statistics
-func (c *Cache) Stats() map[string]interface{} {
+func (c *Cache) Stats() (map[string]interface{}, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -148,11 +153,12 @@ func (c *Cache) Stats() map[string]interface{} {
 	memoryUsage := total * 100 // Rough estimate per item
 
 	return map[string]interface{}{
-		"items":        total,
-		"memory_usage": memoryUsage,
-		"hit_rate":     nil, // Not implemented yet
-		"evictions":    0,   // Not implemented yet
-	}
+		"items":         total,
+		"expired_items": expired,
+		"valid_items":   total - expired,
+		"memory_usage":  memoryUsage,
+		"type":          "in-memory",
+	}, nil
 }
 
 // startCleanup begins the background cleanup process
@@ -215,19 +221,19 @@ func (c *Cache) StatsKey(dataType string) string {
 }
 
 // Cache invalidation helpers
-func (c *Cache) InvalidateFilter(dataType string) {
-	c.InvalidatePattern(dataType + ":filter:")
+func (c *Cache) InvalidateFilter(dataType string) error {
+	return c.InvalidatePattern(dataType + ":filter:")
 }
 
-func (c *Cache) InvalidateList(dataType string) {
-	c.InvalidatePattern(dataType + ":list:")
+func (c *Cache) InvalidateList(dataType string) error {
+	return c.InvalidatePattern(dataType + ":list:")
 }
 
-func (c *Cache) InvalidateStats(dataType string) {
-	c.Delete(dataType + ":stats")
+func (c *Cache) InvalidateStats(dataType string) error {
+	return c.Delete(dataType + ":stats")
 }
 
 // InvalidateAll invalidates all cache for a data type
-func (c *Cache) InvalidateAll(dataType string) {
-	c.InvalidateByType(dataType)
+func (c *Cache) InvalidateAll(dataType string) error {
+	return c.InvalidateByType(dataType)
 }

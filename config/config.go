@@ -24,6 +24,7 @@ type Config struct {
 	Logging  LoggingConfig  `mapstructure:"logging"`
 	Security SecurityConfig `mapstructure:"security"`
 	Locking  LockingConfig  `mapstructure:"locking"`
+	Caching  CachingConfig  `mapstructure:"caching"`
 }
 
 // ServerConfig holds server-related configuration
@@ -99,6 +100,15 @@ type LockingConfig struct {
 	IncrementalTTL  time.Duration `mapstructure:"incremental_ttl"`
 	FullSyncTTL     time.Duration `mapstructure:"full_sync_ttl"`
 	CleanupInterval time.Duration `mapstructure:"cleanup_interval"`
+}
+
+// CachingConfig holds distributed caching configuration
+type CachingConfig struct {
+	Distributed bool          `mapstructure:"distributed"`
+	DefaultTTL  time.Duration `mapstructure:"default_ttl"`
+	FilterTTL   time.Duration `mapstructure:"filter_ttl"`
+	ListTTL     time.Duration `mapstructure:"list_ttl"`
+	StatsTTL    time.Duration `mapstructure:"stats_ttl"`
 }
 
 // Global config instance
@@ -205,6 +215,13 @@ func setDefaults() {
 	viper.SetDefault("locking.incremental_ttl", "5m")
 	viper.SetDefault("locking.full_sync_ttl", "30m")
 	viper.SetDefault("locking.cleanup_interval", "10m")
+
+	// Distributed caching defaults
+	viper.SetDefault("caching.distributed", false) // In-memory by default for single instances
+	viper.SetDefault("caching.default_ttl", "5m")
+	viper.SetDefault("caching.filter_ttl", "5m")
+	viper.SetDefault("caching.list_ttl", "2m")
+	viper.SetDefault("caching.stats_ttl", "30s")
 }
 
 // validateConfig validates the configuration

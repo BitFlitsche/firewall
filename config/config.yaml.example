@@ -43,7 +43,7 @@ redis:
 locking:
   # Set to true to enable distributed locking for multi-instance deployments
   # Set to false for single-instance deployments (no Redis required)
-  enabled: false
+  distributed: false
   
   # Default lock TTL (used for custom locks)
   lock_ttl: "5m"
@@ -56,6 +56,18 @@ locking:
   
   # How often to cleanup expired locks
   cleanup_interval: "10m"
+
+# Caching Configuration
+caching:
+  # Set to true to enable distributed caching for multi-instance deployments (requires Redis)
+  # Set to false for single-instance deployments (uses in-memory cache)
+  distributed: false
+  
+  # Cache TTL settings
+  default_ttl: "5m"
+  filter_ttl: "5m"
+  list_ttl: "2m"
+  stats_ttl: "30s"
 
 logging:
   level: "info"

@@ -26,59 +26,62 @@ func SetupRoutes(r *gin.Engine) {
 		MaxAge:           12 * 60 * 60, // 12 hours
 	}))
 
+	// API routes group
+	api := r.Group("/api")
+
 	// CRUD routes for IPs
-	r.POST("/ip", controllers.CreateIPAddress(db))
-	r.GET("/ips", controllers.GetIPAddresses(db))
-	r.PUT("/ip/:id", controllers.UpdateIPAddress(db))
-	r.DELETE("/ip/:id", controllers.DeleteIPAddress(db))
-	r.GET("/ips/stats", controllers.GetIPStats(db))
-	r.POST("/ip/recreate-index", controllers.RecreateIPIndex(db))
+	api.POST("/ip", controllers.CreateIPAddress(db))
+	api.GET("/ips", controllers.GetIPAddresses(db))
+	api.PUT("/ip/:id", controllers.UpdateIPAddress(db))
+	api.DELETE("/ip/:id", controllers.DeleteIPAddress(db))
+	api.GET("/ips/stats", controllers.GetIPStats(db))
+	api.POST("/ip/recreate-index", controllers.RecreateIPIndex(db))
 
 	// CRUD routes for Emails
-	r.POST("/email", controllers.CreateEmail(db))
-	r.GET("/emails", controllers.GetEmails(db))
-	r.PUT("/email/:id", controllers.UpdateEmail(db))
-	r.DELETE("/email/:id", controllers.DeleteEmail(db))
-	r.GET("/emails/stats", controllers.GetEmailStats(db))
-	r.POST("/emails/recreate-index", controllers.RecreateEmailIndex(db))
+	api.POST("/email", controllers.CreateEmail(db))
+	api.GET("/emails", controllers.GetEmails(db))
+	api.PUT("/email/:id", controllers.UpdateEmail(db))
+	api.DELETE("/email/:id", controllers.DeleteEmail(db))
+	api.GET("/emails/stats", controllers.GetEmailStats(db))
+	api.POST("/emails/recreate-index", controllers.RecreateEmailIndex(db))
 
 	// CRUD routes for User Agents
-	r.POST("/user-agent", controllers.CreateUserAgent(db))
-	r.GET("/user-agents", controllers.GetUserAgents(db))
-	r.PUT("/user-agent/:id", controllers.UpdateUserAgent(db))
-	r.DELETE("/user-agent/:id", controllers.DeleteUserAgent(db))
-	r.GET("/user-agents/stats", controllers.GetUserAgentStats(db))
-	r.POST("/user-agents/recreate-index", controllers.RecreateUserAgentIndex(db))
+	api.POST("/user-agent", controllers.CreateUserAgent(db))
+	api.GET("/user-agents", controllers.GetUserAgents(db))
+	api.PUT("/user-agent/:id", controllers.UpdateUserAgent(db))
+	api.DELETE("/user-agent/:id", controllers.DeleteUserAgent(db))
+	api.GET("/user-agents/stats", controllers.GetUserAgentStats(db))
+	api.POST("/user-agents/recreate-index", controllers.RecreateUserAgentIndex(db))
 
 	// CRUD routes for Countries
-	r.POST("/country", controllers.CreateCountry(db))
-	r.GET("/countries", controllers.GetCountries(db))
-	r.PUT("/country/:id", controllers.UpdateCountry(db))
-	r.DELETE("/country/:id", controllers.DeleteCountry(db))
-	r.GET("/countries/stats", controllers.GetCountryStats(db))
-	r.POST("/countries/recreate-index", controllers.RecreateCountryIndex(db))
+	api.POST("/country", controllers.CreateCountry(db))
+	api.GET("/countries", controllers.GetCountries(db))
+	api.PUT("/country/:id", controllers.UpdateCountry(db))
+	api.DELETE("/country/:id", controllers.DeleteCountry(db))
+	api.GET("/countries/stats", controllers.GetCountryStats(db))
+	api.POST("/countries/recreate-index", controllers.RecreateCountryIndex(db))
 
 	// CharsetRule CRUD
-	r.POST("/charset", controllers.CreateCharsetRule(db))
-	r.GET("/charsets", controllers.GetCharsetRules(db))
-	r.PUT("/charset/:id", controllers.UpdateCharsetRule(db))
-	r.DELETE("/charset/:id", controllers.DeleteCharsetRule(db))
-	r.GET("/charsets/stats", controllers.GetCharsetStats(db))
-	r.POST("/charsets/recreate-index", controllers.RecreateCharsetIndex(db))
+	api.POST("/charset", controllers.CreateCharsetRule(db))
+	api.GET("/charsets", controllers.GetCharsetRules(db))
+	api.PUT("/charset/:id", controllers.UpdateCharsetRule(db))
+	api.DELETE("/charset/:id", controllers.DeleteCharsetRule(db))
+	api.GET("/charsets/stats", controllers.GetCharsetStats(db))
+	api.POST("/charsets/recreate-index", controllers.RecreateCharsetIndex(db))
 
 	// UsernameRule CRUD
-	r.POST("/username", controllers.CreateUsernameRule(db))
-	r.GET("/usernames", controllers.GetUsernameRules(db))
-	r.PUT("/username/:id", controllers.UpdateUsernameRule(db))
-	r.DELETE("/username/:id", controllers.DeleteUsernameRule(db))
-	r.GET("/usernames/stats", controllers.GetUsernameStats(db))
-	r.POST("/usernames/recreate-index", controllers.RecreateUsernameIndex(db))
+	api.POST("/username", controllers.CreateUsernameRule(db))
+	api.GET("/usernames", controllers.GetUsernameRules(db))
+	api.PUT("/username/:id", controllers.UpdateUsernameRule(db))
+	api.DELETE("/username/:id", controllers.DeleteUsernameRule(db))
+	api.GET("/usernames/stats", controllers.GetUsernameStats(db))
+	api.POST("/usernames/recreate-index", controllers.RecreateUsernameIndex(db))
 
 	// Filtering route
-	r.POST("/filter", controllers.FilterRequestHandler(db))
+	api.POST("/filter", controllers.FilterRequestHandler(db))
 
 	// Manual sync routes
-	r.POST("/sync", func(c *gin.Context) {
+	api.POST("/sync", func(c *gin.Context) {
 		if err := services.SyncAllData(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sync data"})
 			return
@@ -86,10 +89,10 @@ func SetupRoutes(r *gin.Engine) {
 		c.JSON(http.StatusOK, gin.H{"message": "Data synced successfully"})
 	})
 
-	r.POST("/sync/full", controllers.ManualFullSync(db))
+	api.POST("/sync/full", controllers.ManualFullSync(db))
 
 	// Force sync route
-	r.POST("/sync/force", func(c *gin.Context) {
+	api.POST("/sync/force", func(c *gin.Context) {
 		scheduledSync := services.GetScheduledSync()
 		if err := scheduledSync.ForceSync(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to force sync"})
@@ -122,7 +125,7 @@ func SetupRoutes(r *gin.Engine) {
 	})
 
 	// Service status route
-	r.GET("/status", func(c *gin.Context) {
+	api.GET("/status", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"event_processor": "running",
 			"retry_queue":     "running",
@@ -131,14 +134,18 @@ func SetupRoutes(r *gin.Engine) {
 		})
 	})
 
-	r.GET("/system-stats", controllers.SystemStatsHandler(db))
-	r.POST("/sync/charsets", controllers.SyncCharsetsHandler(db))
-	r.POST("/sync/usernames", controllers.SyncUsernamesHandler(db))
+	api.GET("/system-stats", controllers.SystemStatsHandler(db))
+	api.POST("/sync/charsets", controllers.SyncCharsetsHandler(db))
+	api.POST("/sync/usernames", controllers.SyncUsernamesHandler(db))
 
 	// Cache management route
-	r.POST("/cache/flush", func(c *gin.Context) {
-		cache := services.GetCache()
-		stats := cache.Stats()
+	api.POST("/cache/flush", func(c *gin.Context) {
+		cache := services.GetCacheFactory()
+		stats, err := cache.Stats()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get cache stats"})
+			return
+		}
 		itemsCleared := stats["items"].(int)
 		cache.Clear()
 		c.JSON(http.StatusOK, gin.H{
@@ -148,7 +155,7 @@ func SetupRoutes(r *gin.Engine) {
 	})
 
 	// Sync status route
-	r.GET("/sync/status", func(c *gin.Context) {
+	api.GET("/sync/status", func(c *gin.Context) {
 		distributedLock := services.GetDistributedLock()
 
 		// Get lock information

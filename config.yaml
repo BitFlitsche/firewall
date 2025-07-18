@@ -64,4 +64,20 @@ security:
     - "Authorization"
     - "X-Requested-With"
   rate_limit: 1000
-  rate_limit_window: "1m" 
+  rate_limit_window: "1m"
+
+# Distributed locking configuration
+locking:
+  distributed: false  # Set to true for horizontal scaling (requires Redis)
+  lock_ttl: "5m"
+  incremental_ttl: "5m"
+  full_sync_ttl: "30m"
+  cleanup_interval: "10m"
+
+# Caching configuration
+caching:
+  distributed: false  # Set to true for horizontal scaling (requires Redis)
+  default_ttl: "5m"
+  filter_ttl: "5m"
+  list_ttl: "2m"
+  stats_ttl: "30s" 

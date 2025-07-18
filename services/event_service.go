@@ -82,7 +82,7 @@ func (ep *EventProcessor) processEvent(event Event) {
 	log.Printf("Processing event: %s.%s", event.Type, event.Action)
 
 	// Get cache instance for invalidation
-	cache := GetCache()
+	cache := GetCacheFactory()
 
 	switch event.Type {
 	case "ip":

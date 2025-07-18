@@ -272,11 +272,11 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 		normalizedEmail := normalizeEmail(input.Email)
 
 		// Generate a cache key based on the normalized filter input
-		cache := services.GetCache()
+		cache := services.GetCacheFactory()
 		cacheKey := "filter:" + input.IP + ":" + normalizedEmail + ":" + input.UserAgent + ":" + input.Country + ":" + input.Username
 
 		// Try to get from cache first
-		if cached, exists := cache.Get(cacheKey); exists {
+		if cached, exists, _ := cache.Get(cacheKey); exists {
 			c.JSON(http.StatusOK, cached)
 			return
 		}
