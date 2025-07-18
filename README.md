@@ -107,7 +107,12 @@ The frontend will be available at http://localhost:3000
 - `POST /filter` - Filter requests based on multiple criteria
 
 ### System Monitoring
-- `GET /api/stats` - Get system statistics including connection pool metrics
+- `GET /system-stats` - Get system statistics including connection pool metrics
+
+### Data Synchronization
+- `POST /sync/full` - Manual full sync of all data to Elasticsearch
+- `POST /sync/force` - Force immediate incremental sync
+- `POST /sync` - Legacy sync endpoint (use /sync/full instead)
 
 ## API-Dokumentation (Swagger)
 
@@ -195,6 +200,39 @@ docker-compose down
 3. CORS issues:
    - Verify CORS configuration in `routes/routes.go`
    - Check browser console for specific error messages
+
+## Data Synchronization Strategy
+
+### Incremental Sync (Automatic)
+- **Frequency**: Every 30 seconds
+- **Behavior**: Only syncs records that have changed since the last sync
+- **Performance**: Efficient, minimal resource usage
+- **Use Case**: Normal operation, real-time updates
+
+### Full Sync (Manual)
+- **Trigger**: Manual via API endpoint or script
+- **Behavior**: Syncs all data from MySQL to Elasticsearch
+- **Performance**: Resource-intensive, should be used sparingly
+- **Use Cases**:
+  - Initial setup
+  - Data recovery after Elasticsearch issues
+  - Schema changes or data structure updates
+  - Troubleshooting incremental sync problems
+
+### Manual Full Sync Usage
+
+```bash
+# Using curl
+curl -X POST http://localhost:8081/sync/full
+
+# Using the provided script
+./scripts/manual_full_sync.sh
+```
+
+### Sync Monitoring
+- Check sync status: `GET /system-stats`
+- Monitor Elasticsearch health in system stats
+- View sync logs in application logs
 
 ## Security Considerations
 

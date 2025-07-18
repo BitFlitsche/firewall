@@ -4,6 +4,7 @@ package routes
 import (
 	"firewall/config"
 	"firewall/controllers"
+	"firewall/models"
 	"firewall/services"
 	"net/http"
 	"time"
@@ -76,7 +77,7 @@ func SetupRoutes(r *gin.Engine) {
 	// Filtering route
 	r.POST("/filter", controllers.FilterRequestHandler(db))
 
-	// Manual sync route
+	// Manual sync routes
 	r.POST("/sync", func(c *gin.Context) {
 		if err := services.SyncAllData(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sync data"})
@@ -85,6 +86,8 @@ func SetupRoutes(r *gin.Engine) {
 		c.JSON(http.StatusOK, gin.H{"message": "Data synced successfully"})
 	})
 
+	r.POST("/sync/full", controllers.ManualFullSync(db))
+
 	// Force sync route
 	r.POST("/sync/force", func(c *gin.Context) {
 		scheduledSync := services.GetScheduledSync()
@@ -92,7 +95,30 @@ func SetupRoutes(r *gin.Engine) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to force sync"})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"message": "Force sync completed successfully"})
+
+		// Count records that were synced (this is a full sync, so count all records)
+		var totalRecords int64
+		db.Model(&models.IP{}).Count(&totalRecords)
+		var emailCount int64
+		db.Model(&models.Email{}).Count(&emailCount)
+		totalRecords += emailCount
+		var userAgentCount int64
+		db.Model(&models.UserAgent{}).Count(&userAgentCount)
+		totalRecords += userAgentCount
+		var countryCount int64
+		db.Model(&models.Country{}).Count(&countryCount)
+		totalRecords += countryCount
+		var charsetCount int64
+		db.Model(&models.CharsetRule{}).Count(&charsetCount)
+		totalRecords += charsetCount
+		var usernameCount int64
+		db.Model(&models.UsernameRule{}).Count(&usernameCount)
+		totalRecords += usernameCount
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":        "Force sync completed successfully",
+			"records_synced": totalRecords,
+		})
 	})
 
 	// Service status route
@@ -108,4 +134,16 @@ func SetupRoutes(r *gin.Engine) {
 	r.GET("/system-stats", controllers.SystemStatsHandler(db))
 	r.POST("/sync/charsets", controllers.SyncCharsetsHandler(db))
 	r.POST("/sync/usernames", controllers.SyncUsernamesHandler(db))
+
+	// Cache management route
+	r.POST("/cache/flush", func(c *gin.Context) {
+		cache := services.GetCache()
+		stats := cache.Stats()
+		itemsCleared := stats["items"].(int)
+		cache.Clear()
+		c.JSON(http.StatusOK, gin.H{
+			"message":       "Cache flushed successfully",
+			"items_cleared": itemsCleared,
+		})
+	})
 }

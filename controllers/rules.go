@@ -5,6 +5,7 @@ import (
 	"firewall/models"
 	"firewall/services"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"runtime"
@@ -1255,7 +1256,14 @@ func RecreateIPIndex(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "IP index recreated successfully"})
+		// Count records indexed
+		var recordCount int64
+		db.Model(&models.IP{}).Count(&recordCount)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":         "IP index recreated successfully",
+			"records_indexed": recordCount,
+		})
 	}
 }
 
@@ -1281,7 +1289,14 @@ func RecreateEmailIndex(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Email index recreated successfully"})
+		// Count records indexed
+		var recordCount int64
+		db.Model(&models.Email{}).Count(&recordCount)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":         "Email index recreated successfully",
+			"records_indexed": recordCount,
+		})
 	}
 }
 
@@ -1307,7 +1322,14 @@ func RecreateUserAgentIndex(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "User agent index recreated successfully"})
+		// Count records indexed
+		var recordCount int64
+		db.Model(&models.UserAgent{}).Count(&recordCount)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":         "User agent index recreated successfully",
+			"records_indexed": recordCount,
+		})
 	}
 }
 
@@ -1333,7 +1355,14 @@ func RecreateCountryIndex(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Country index recreated successfully"})
+		// Count records indexed
+		var recordCount int64
+		db.Model(&models.Country{}).Count(&recordCount)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":         "Country index recreated successfully",
+			"records_indexed": recordCount,
+		})
 	}
 }
 
@@ -1359,7 +1388,14 @@ func RecreateCharsetIndex(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Charset index recreated successfully"})
+		// Count records indexed
+		var recordCount int64
+		db.Model(&models.CharsetRule{}).Count(&recordCount)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":         "Charset index recreated successfully",
+			"records_indexed": recordCount,
+		})
 	}
 }
 
@@ -1385,6 +1421,60 @@ func RecreateUsernameIndex(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Username index recreated successfully"})
+		// Count records indexed
+		var recordCount int64
+		db.Model(&models.UsernameRule{}).Count(&recordCount)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":         "Username index recreated successfully",
+			"records_indexed": recordCount,
+		})
+	}
+}
+
+// ManualFullSync performs a manual full sync of all data to Elasticsearch
+// @Summary      Manual full sync
+// @Description  Performs a full sync of all data from MySQL to Elasticsearch
+// @Tags         sync
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /sync/full [post]
+func ManualFullSync(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		log.Println("Manual full sync requested...")
+
+		// Create incremental sync instance to update timestamps
+		incrementalSync := services.NewIncrementalSync()
+
+		// Perform full sync and update timestamps
+		if err := incrementalSync.ForceFullSync(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Full sync failed: " + err.Error()})
+			return
+		}
+
+		// Count total records synced
+		var totalRecords int64
+		db.Model(&models.IP{}).Count(&totalRecords)
+		var emailCount int64
+		db.Model(&models.Email{}).Count(&emailCount)
+		totalRecords += emailCount
+		var userAgentCount int64
+		db.Model(&models.UserAgent{}).Count(&userAgentCount)
+		totalRecords += userAgentCount
+		var countryCount int64
+		db.Model(&models.Country{}).Count(&countryCount)
+		totalRecords += countryCount
+		var charsetCount int64
+		db.Model(&models.CharsetRule{}).Count(&charsetCount)
+		totalRecords += charsetCount
+		var usernameCount int64
+		db.Model(&models.UsernameRule{}).Count(&usernameCount)
+		totalRecords += usernameCount
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":        "Full sync completed successfully",
+			"records_synced": totalRecords,
+		})
 	}
 }

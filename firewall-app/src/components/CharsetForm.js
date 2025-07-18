@@ -22,7 +22,7 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import { useLocation } from 'react-router-dom';
-import RecreateIndexButton from './RecreateIndexButton';
+
 
 // Separate filter controls component that only re-renders when filter values change
 const FilterControls = memo(({ 
@@ -73,7 +73,6 @@ const FilterControls = memo(({
             <Button variant="outlined" size="small" onClick={onReset}>
                 Reset
             </Button>
-            <RecreateIndexButton indexType="charset" />
         </Box>
     );
 }, (prevProps, nextProps) => {

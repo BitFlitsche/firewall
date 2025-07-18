@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -145,11 +144,14 @@ func (c *Cache) Stats() map[string]interface{} {
 		}
 	}
 
+	// Calculate memory usage in bytes (rough estimate)
+	memoryUsage := total * 100 // Rough estimate per item
+
 	return map[string]interface{}{
-		"total_items":   total,
-		"expired_items": expired,
-		"valid_items":   total - expired,
-		"memory_usage":  fmt.Sprintf("~%d bytes", total*100), // Rough estimate
+		"items":        total,
+		"memory_usage": memoryUsage,
+		"hit_rate":     nil, // Not implemented yet
+		"evictions":    0,   // Not implemented yet
 	}
 }
 

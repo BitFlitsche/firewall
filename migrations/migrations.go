@@ -16,6 +16,7 @@ func Migrate(db *gorm.DB) error {
 		&models.Country{},
 		&models.CharsetRule{},
 		&models.UsernameRule{},
+		&models.SyncTracker{},
 	)
 	if err != nil {
 		return err

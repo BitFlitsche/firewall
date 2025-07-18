@@ -9,9 +9,10 @@ import (
 
 // ScheduledSync handles periodic sync operations
 type ScheduledSync struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	ctx             context.Context
+	cancel          context.CancelFunc
+	wg              sync.WaitGroup
+	incrementalSync *IncrementalSync
 }
 
 var (
@@ -24,8 +25,9 @@ func GetScheduledSync() *ScheduledSync {
 	syncOnce.Do(func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		scheduledSync = &ScheduledSync{
-			ctx:    ctx,
-			cancel: cancel,
+			ctx:             ctx,
+			cancel:          cancel,
+			incrementalSync: NewIncrementalSync(),
 		}
 		scheduledSync.start()
 	})
@@ -34,15 +36,12 @@ func GetScheduledSync() *ScheduledSync {
 
 // start begins the scheduled sync operations
 func (ss *ScheduledSync) start() {
-	// Start full sync every 5 minutes
-	ss.wg.Add(1)
-	go ss.runFullSync(5 * time.Minute)
-
-	// Start incremental sync every 30 seconds
+	// Only run incremental sync every 30 seconds
+	// Full sync should be run manually when needed
 	ss.wg.Add(1)
 	go ss.runIncrementalSync(30 * time.Second)
 
-	log.Println("Scheduled sync service started")
+	log.Println("Scheduled sync service started (incremental only)")
 }
 
 // runFullSync runs full data sync at specified intervals
@@ -53,7 +52,7 @@ func (ss *ScheduledSync) runFullSync(interval time.Duration) {
 
 	// Run initial sync
 	log.Println("Running initial full sync...")
-	if err := SyncAllData(); err != nil {
+	if err := ss.incrementalSync.ForceFullSync(); err != nil {
 		log.Printf("Initial sync failed: %v", err)
 	}
 
@@ -61,7 +60,7 @@ func (ss *ScheduledSync) runFullSync(interval time.Duration) {
 		select {
 		case <-ticker.C:
 			log.Println("Running scheduled full sync...")
-			if err := SyncAllData(); err != nil {
+			if err := ss.incrementalSync.ForceFullSync(); err != nil {
 				log.Printf("Scheduled full sync failed: %v", err)
 			} else {
 				log.Println("Scheduled full sync completed successfully")
@@ -97,9 +96,8 @@ func (ss *ScheduledSync) runIncrementalSync(interval time.Duration) {
 
 // runIncrementalSyncOperation performs incremental sync
 func (ss *ScheduledSync) runIncrementalSyncOperation() error {
-	// For now, just run a full sync
-	// In a production system, you'd track last sync time and only sync new/modified records
-	return SyncAllData()
+	// Use the new incremental sync that only syncs changed records
+	return ss.incrementalSync.SyncIncrementalAll()
 }
 
 // Stop gracefully stops the scheduled sync service
@@ -112,5 +110,5 @@ func (ss *ScheduledSync) Stop() {
 // ForceSync triggers an immediate sync
 func (ss *ScheduledSync) ForceSync() error {
 	log.Println("Forcing immediate sync...")
-	return SyncAllData()
+	return ss.incrementalSync.ForceFullSync()
 }

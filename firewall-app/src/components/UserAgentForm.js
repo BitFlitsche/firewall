@@ -26,7 +26,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Tooltip from '@mui/material/Tooltip';
 import InfoIcon from '@mui/icons-material/Info';
 import { useLocation } from 'react-router-dom';
-import RecreateIndexButton from './RecreateIndexButton';
+
 
 // Separate memoized search field component that never re-renders
 // Separate filter controls component that only re-renders when filter values change
@@ -477,18 +477,7 @@ const UserAgentForm = () => {
                     />
                 </Box>
                 
-                {/* Recreate Index Button */}
-                <Box sx={{ mb: 2 }}>
-                    <RecreateIndexButton 
-                        endpoint="/user-agents/recreate-index"
-                        listName="User Agent"
-                        onSuccess={(message) => {
-                            setMessage(message);
-                            setRefresh(r => !r);
-                        }}
-                        onError={(error) => setError(error)}
-                    />
-                </Box>
+
                 
                 <UserAgentTable 
                     userAgents={userAgents}
