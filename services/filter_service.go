@@ -121,7 +121,7 @@ func filterEmail(ctx context.Context, email string, result chan FilterResult) {
 		"query": {
 			"bool": {
 				"must": [
-					{"match": {"email": "` + email + `"}},
+					{"term": {"email.keyword": "` + email + `"}},
 					{"term": {"is_regex": false}}
 				]
 			}
@@ -231,7 +231,7 @@ func filterUserAgent(ctx context.Context, userAgent string, result chan FilterRe
 		"query": {
 			"bool": {
 				"must": [
-					{"match": {"user_agent": "` + userAgent + `"}},
+					{"term": {"user_agent.keyword": "` + userAgent + `"}},
 					{"term": {"is_regex": false}}
 				]
 			}
@@ -392,7 +392,7 @@ func filterUsername(ctx context.Context, username string, result chan FilterResu
 		"query": {
 			"bool": {
 				"must": [
-					{"match": {"username": "` + username + `"}},
+					{"term": {"username.keyword": "` + username + `"}},
 					{"term": {"is_regex": false}}
 				]
 			}

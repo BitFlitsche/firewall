@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"firewall/config"
 	"firewall/models"
+	"fmt"
 	"log"
 	"strings"
 
@@ -63,9 +64,11 @@ func IndexEmail(email models.Email) error {
 		return err
 	}
 
+	// Use database ID as document ID to avoid issues with special characters in patterns
+	docID := fmt.Sprintf("%d", email.ID)
 	req := esapi.IndexRequest{
 		Index:      "emails",
-		DocumentID: email.Address,
+		DocumentID: docID,
 		Body:       strings.NewReader(string(docJSON)),
 	}
 
@@ -99,9 +102,11 @@ func IndexUserAgent(userAgent models.UserAgent) error {
 		return err
 	}
 
+	// Use database ID as document ID to avoid issues with special characters in patterns
+	docID := fmt.Sprintf("%d", userAgent.ID)
 	req := esapi.IndexRequest{
 		Index:      "user-agents",
-		DocumentID: userAgent.UserAgent,
+		DocumentID: docID,
 		Body:       strings.NewReader(string(docJSON)),
 	}
 
@@ -205,9 +210,11 @@ func IndexUsernameRule(username models.UsernameRule) error {
 		return err
 	}
 
+	// Use database ID as document ID to avoid issues with special characters in patterns
+	docID := fmt.Sprintf("%d", username.ID)
 	req := esapi.IndexRequest{
 		Index:      "usernames",
-		DocumentID: username.Username,
+		DocumentID: docID,
 		Body:       strings.NewReader(string(docJSON)),
 	}
 
