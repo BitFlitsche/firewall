@@ -2074,3 +2074,103 @@ func CheckIPConflicts(db *gorm.DB) gin.HandlerFunc {
 		})
 	}
 }
+
+// Charset Fields Management Controllers
+
+// GetCharsetFields returns the current charset fields configuration
+func GetCharsetFields(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		fieldsConfig := services.GetCharsetFieldsConfig()
+		allFields := fieldsConfig.GetAllFields()
+
+		c.JSON(http.StatusOK, gin.H{
+			"standard_fields": allFields["standard"],
+			"custom_fields":   allFields["custom"],
+		})
+	}
+}
+
+// ToggleStandardField enables/disables a standard field
+func ToggleStandardField(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var request struct {
+			FieldName string `json:"field_name" binding:"required"`
+		}
+
+		if err := c.ShouldBindJSON(&request); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+
+		fieldsConfig := services.GetCharsetFieldsConfig()
+		if err := fieldsConfig.ToggleStandardField(request.FieldName); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Field toggled successfully"})
+	}
+}
+
+// AddCustomField adds a new custom field
+func AddCustomField(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var request struct {
+			FieldName string `json:"field_name" binding:"required"`
+		}
+
+		if err := c.ShouldBindJSON(&request); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+
+		fieldsConfig := services.GetCharsetFieldsConfig()
+		if err := fieldsConfig.AddCustomField(request.FieldName); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Custom field added successfully"})
+	}
+}
+
+// DeleteCustomField removes a custom field
+func DeleteCustomField(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		fieldName := c.Param("field")
+		if fieldName == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Field name is required"})
+			return
+		}
+
+		fieldsConfig := services.GetCharsetFieldsConfig()
+		if err := fieldsConfig.DeleteCustomField(fieldName); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Custom field deleted successfully"})
+	}
+}
+
+// ToggleCustomField enables/disables a custom field
+func ToggleCustomField(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var request struct {
+			FieldName string `json:"field_name" binding:"required"`
+		}
+
+		if err := c.ShouldBindJSON(&request); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+
+		fieldsConfig := services.GetCharsetFieldsConfig()
+		if err := fieldsConfig.ToggleCustomField(request.FieldName); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Custom field toggled successfully"})
+	}
+}

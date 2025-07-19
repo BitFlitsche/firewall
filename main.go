@@ -36,6 +36,11 @@ func main() {
 		log.Printf("Warning: Country seeding failed: %v", err)
 	}
 
+	// Seed charsets if table is empty
+	if err := services.SeedCharsets(config.DB); err != nil {
+		log.Printf("Warning: Charset seeding failed: %v", err)
+	}
+
 	config.InitElasticsearch()
 
 	// Initialize all services

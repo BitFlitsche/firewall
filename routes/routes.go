@@ -70,6 +70,13 @@ func SetupRoutes(r *gin.Engine) {
 	api.GET("/charsets/stats", controllers.GetCharsetStats(db))
 	api.POST("/charsets/recreate-index", controllers.RecreateCharsetIndex(db))
 
+	// Charset Filter Fields Management
+	api.GET("/charset-fields", controllers.GetCharsetFields(db))
+	api.POST("/charset-fields/toggle-standard", controllers.ToggleStandardField(db))
+	api.POST("/charset-fields/add-custom", controllers.AddCustomField(db))
+	api.DELETE("/charset-fields/custom/:field", controllers.DeleteCustomField(db))
+	api.POST("/charset-fields/toggle-custom", controllers.ToggleCustomField(db))
+
 	// UsernameRule CRUD
 	api.POST("/username", controllers.CreateUsernameRule(db))
 	api.GET("/usernames", controllers.GetUsernameRules(db))

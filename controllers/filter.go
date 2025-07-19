@@ -226,37 +226,379 @@ func normalizeEmail(email string) string {
 	return localPart + "@" + domain
 }
 
-// Helper: Charset-Erkennung (sehr einfach, z.B. ASCII, Latin, Cyrillic, etc.)
+// Enhanced Charset Detection with Unicode Script Support
 func detectCharset(s string) string {
 	if s == "" {
 		return "ASCII"
 	}
-	ascii := true
-	latin := true
-	cyrillic := true
+
+	// Count characters by script
+	scriptCounts := make(map[string]int)
+	totalChars := 0
+
 	for _, r := range s {
-		if r > 127 {
-			ascii = false
-		}
-		if !(r >= 0x0020 && r <= 0x007E) && !(r >= 0x00A0 && r <= 0x00FF) {
-			latin = false
-		}
-		if !(r >= 0x0400 && r <= 0x04FF) {
-			cyrillic = false
-		}
+		totalChars++
+		script := getUnicodeScript(r)
+		scriptCounts[script]++
 	}
-	if ascii {
+
+	// If only ASCII characters, return ASCII
+	if scriptCounts["ASCII"] == totalChars {
 		return "ASCII"
 	}
-	if latin {
-		return "Latin"
+
+	// Find the dominant script (script with highest count)
+	var dominantScript string
+	maxCount := 0
+	for script, count := range scriptCounts {
+		if count > maxCount {
+			maxCount = count
+			dominantScript = script
+		}
 	}
-	if cyrillic {
-		return "Cyrillic"
+
+	// If dominant script has more than 50% of characters, use it
+	if float64(maxCount)/float64(totalChars) > 0.5 {
+		return dominantScript
 	}
+
+	// If no dominant script, check for mixed content
+	if len(scriptCounts) > 1 {
+		return "Mixed"
+	}
+
+	// Fallback to UTF-8 for valid strings
 	if utf8.ValidString(s) {
 		return "UTF-8"
 	}
+
+	return "Other"
+}
+
+// getFieldValue dynamically retrieves a field value from the FilterRequest
+// This allows for custom fields to be checked for charset detection
+func getFieldValue(input FilterRequest, fieldName string) (string, bool) {
+	// Use reflection to get field value dynamically
+	// For now, we'll handle the known fields explicitly
+	switch fieldName {
+	case "ip":
+		return input.IP, true
+	case "email":
+		return input.Email, true
+	case "user_agent":
+		return input.UserAgent, true
+	case "country":
+		return input.Country, true
+	case "content":
+		return input.Content, true
+	case "username":
+		return input.Username, true
+	default:
+		// For unknown fields, return empty string
+		// In a more sophisticated implementation, you could use reflection
+		// to dynamically access any field name
+		return "", false
+	}
+}
+
+// getUnicodeScript determines the Unicode script for a rune
+func getUnicodeScript(r rune) string {
+	// ASCII range
+	if r <= 127 {
+		return "ASCII"
+	}
+
+	// Basic Latin (extended)
+	if r >= 0x0080 && r <= 0x00FF {
+		return "Latin"
+	}
+
+	// Latin Extended-A
+	if r >= 0x0100 && r <= 0x017F {
+		return "Latin"
+	}
+
+	// Latin Extended-B
+	if r >= 0x0180 && r <= 0x024F {
+		return "Latin"
+	}
+
+	// Cyrillic
+	if r >= 0x0400 && r <= 0x04FF {
+		return "Cyrillic"
+	}
+
+	// Cyrillic Extended
+	if r >= 0x0500 && r <= 0x052F {
+		return "Cyrillic"
+	}
+
+	// Arabic
+	if r >= 0x0600 && r <= 0x06FF {
+		return "Arabic"
+	}
+
+	// Arabic Extended
+	if r >= 0x0750 && r <= 0x077F {
+		return "Arabic"
+	}
+
+	// Arabic Presentation Forms-A
+	if r >= 0xFB50 && r <= 0xFDFF {
+		return "Arabic"
+	}
+
+	// Arabic Presentation Forms-B
+	if r >= 0xFE70 && r <= 0xFEFF {
+		return "Arabic"
+	}
+
+	// Hebrew
+	if r >= 0x0590 && r <= 0x05FF {
+		return "Hebrew"
+	}
+
+	// Greek
+	if r >= 0x0370 && r <= 0x03FF {
+		return "Greek"
+	}
+
+	// Greek Extended
+	if r >= 0x1F00 && r <= 0x1FFF {
+		return "Greek"
+	}
+
+	// Thai
+	if r >= 0x0E00 && r <= 0x0E7F {
+		return "Thai"
+	}
+
+	// Devanagari (Hindi, Sanskrit, etc.)
+	if r >= 0x0900 && r <= 0x097F {
+		return "Devanagari"
+	}
+
+	// Bengali
+	if r >= 0x0980 && r <= 0x09FF {
+		return "Bengali"
+	}
+
+	// Tamil
+	if r >= 0x0B80 && r <= 0x0BFF {
+		return "Tamil"
+	}
+
+	// Telugu
+	if r >= 0x0C00 && r <= 0x0C7F {
+		return "Telugu"
+	}
+
+	// Kannada
+	if r >= 0x0C80 && r <= 0x0CFF {
+		return "Kannada"
+	}
+
+	// Malayalam
+	if r >= 0x0D00 && r <= 0x0D7F {
+		return "Malayalam"
+	}
+
+	// Gujarati
+	if r >= 0x0A80 && r <= 0x0AFF {
+		return "Gujarati"
+	}
+
+	// Gurmukhi (Punjabi)
+	if r >= 0x0A00 && r <= 0x0A7F {
+		return "Gurmukhi"
+	}
+
+	// Oriya
+	if r >= 0x0B00 && r <= 0x0B7F {
+		return "Oriya"
+	}
+
+	// Chinese (Simplified and Traditional)
+	if r >= 0x4E00 && r <= 0x9FFF {
+		return "Chinese"
+	}
+
+	// Chinese Extended
+	if r >= 0x3400 && r <= 0x4DBF {
+		return "Chinese"
+	}
+
+	// Chinese Extended-A
+	if r >= 0x20000 && r <= 0x2A6DF {
+		return "Chinese"
+	}
+
+	// Japanese Hiragana
+	if r >= 0x3040 && r <= 0x309F {
+		return "Japanese"
+	}
+
+	// Japanese Katakana
+	if r >= 0x30A0 && r <= 0x30FF {
+		return "Japanese"
+	}
+
+	// Japanese Katakana Phonetic Extensions
+	if r >= 0x31F0 && r <= 0x31FF {
+		return "Japanese"
+	}
+
+	// Korean Hangul
+	if r >= 0xAC00 && r <= 0xD7AF {
+		return "Korean"
+	}
+
+	// Korean Hangul Jamo
+	if r >= 0x1100 && r <= 0x11FF {
+		return "Korean"
+	}
+
+	// Korean Hangul Compatibility Jamo
+	if r >= 0x3130 && r <= 0x318F {
+		return "Korean"
+	}
+
+	// Korean Hangul Jamo Extended-A
+	if r >= 0xA960 && r <= 0xA97F {
+		return "Korean"
+	}
+
+	// Korean Hangul Jamo Extended-B
+	if r >= 0xD7B0 && r <= 0xD7FF {
+		return "Korean"
+	}
+
+	// Vietnamese (Latin with diacritics)
+	if r >= 0x1EA0 && r <= 0x1EFF {
+		return "Vietnamese"
+	}
+
+	// Armenian
+	if r >= 0x0530 && r <= 0x058F {
+		return "Armenian"
+	}
+
+	// Georgian
+	if r >= 0x10A0 && r <= 0x10FF {
+		return "Georgian"
+	}
+
+	// Ethiopic
+	if r >= 0x1200 && r <= 0x137F {
+		return "Ethiopic"
+	}
+
+	// Mongolian
+	if r >= 0x1800 && r <= 0x18AF {
+		return "Mongolian"
+	}
+
+	// Tibetan
+	if r >= 0x0F00 && r <= 0x0FFF {
+		return "Tibetan"
+	}
+
+	// Khmer
+	if r >= 0x1780 && r <= 0x17FF {
+		return "Khmer"
+	}
+
+	// Lao
+	if r >= 0x0E80 && r <= 0x0EFF {
+		return "Lao"
+	}
+
+	// Myanmar
+	if r >= 0x1000 && r <= 0x109F {
+		return "Myanmar"
+	}
+
+	// Sinhala
+	if r >= 0x0D80 && r <= 0x0DFF {
+		return "Sinhala"
+	}
+
+	// Malayalam
+	if r >= 0x0D00 && r <= 0x0D7F {
+		return "Malayalam"
+	}
+
+	// Telugu
+	if r >= 0x0C00 && r <= 0x0C7F {
+		return "Telugu"
+	}
+
+	// Kannada
+	if r >= 0x0C80 && r <= 0x0CFF {
+		return "Kannada"
+	}
+
+	// Gujarati
+	if r >= 0x0A80 && r <= 0x0AFF {
+		return "Gujarati"
+	}
+
+	// Gurmukhi
+	if r >= 0x0A00 && r <= 0x0A7F {
+		return "Gurmukhi"
+	}
+
+	// Oriya
+	if r >= 0x0B00 && r <= 0x0B7F {
+		return "Oriya"
+	}
+
+	// Bengali
+	if r >= 0x0980 && r <= 0x09FF {
+		return "Bengali"
+	}
+
+	// Devanagari
+	if r >= 0x0900 && r <= 0x097F {
+		return "Devanagari"
+	}
+
+	// Tamil
+	if r >= 0x0B80 && r <= 0x0BFF {
+		return "Tamil"
+	}
+
+	// Thai
+	if r >= 0x0E00 && r <= 0x0E7F {
+		return "Thai"
+	}
+
+	// Lao
+	if r >= 0x0E80 && r <= 0x0EFF {
+		return "Lao"
+	}
+
+	// Khmer
+	if r >= 0x1780 && r <= 0x17FF {
+		return "Khmer"
+	}
+
+	// Myanmar
+	if r >= 0x1000 && r <= 0x109F {
+		return "Myanmar"
+	}
+
+	// Sinhala
+	if r >= 0x0D80 && r <= 0x0DFF {
+		return "Sinhala"
+	}
+
+	// Default to Latin for other extended Latin characters
+	if r >= 0x0250 && r <= 0x02AF {
+		return "Latin"
+	}
+
+	// Default to Other for unrecognized characters
 	return "Other"
 }
 
@@ -278,12 +620,6 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 				"error":   "Validation failed",
 				"details": validationResult.Errors,
 			})
-			return
-		}
-
-		// Validate that at least one filter field is provided
-		if input.IP == "" && input.Email == "" && input.UserAgent == "" && input.Country == "" && input.Username == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "At least one filter field must be provided (ip, email, user_agent, country, or username)"})
 			return
 		}
 
@@ -375,13 +711,33 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 		var charsetRules []models.CharsetRule
 		db.Find(&charsetRules)
 
-		// Prüfe Email, UserAgent, Content, Username auf Charset-Regeln
-		fields := map[string]string{
-			"email":      input.Email, // Use original email for charset detection
-			"user_agent": input.UserAgent,
-			"content":    input.Content,
-			"username":   input.Username,
+		// Get enabled fields for charset detection
+		fieldsConfig := services.GetCharsetFieldsConfig()
+		enabledFields := fieldsConfig.GetEnabledFields()
+
+		// Prüfe enabled fields auf Charset-Regeln
+		fields := make(map[string]string)
+
+		// Add standard fields if enabled
+		for _, fieldName := range enabledFields {
+			switch fieldName {
+			case "email":
+				fields["email"] = input.Email // Use original email for charset detection
+			case "user_agent":
+				fields["user_agent"] = input.UserAgent
+			case "username":
+				fields["username"] = input.Username
+			case "content":
+				fields["content"] = input.Content
+			default:
+				// For custom fields, try to get from input dynamically
+				// This allows for any field name to be checked
+				if value, exists := getFieldValue(input, fieldName); exists {
+					fields[fieldName] = value
+				}
+			}
 		}
+
 		for field, value := range fields {
 			if value == "" {
 				continue

@@ -1,26 +1,15 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import axios from '../axiosConfig';
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Alert from '@mui/material/Alert';
-import MenuItem from '@mui/material/MenuItem';
-import IconButton from '@mui/material/IconButton';
-import DeleteIcon from '@mui/icons-material/Delete';
+import {
+    Box, Paper, Typography, TextField, Button, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+    TablePagination, TableSortLabel, IconButton, FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel,
+    Chip, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText, ListItemSecondaryAction,
+    Accordion, AccordionSummary, AccordionDetails
+} from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
-import TableSortLabel from '@mui/material/TableSortLabel';
-import TablePagination from '@mui/material/TablePagination';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import axios from '../axiosConfig';
 import { useLocation } from 'react-router-dom';
 
 
@@ -162,15 +151,6 @@ const CharsetTable = memo(({
                             <TableRow>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'id'}
-                                        direction={orderBy === 'id' ? order : 'asc'}
-                                        onClick={() => onSort('id')}
-                                    >
-                                        ID
-                                    </TableSortLabel>
-                                </TableCell>
-                                <TableCell>
-                                    <TableSortLabel
                                         active={orderBy === 'charset'}
                                         direction={orderBy === 'charset' ? order : 'asc'}
                                         onClick={() => onSort('charset')}
@@ -193,12 +173,11 @@ const CharsetTable = memo(({
                         <TableBody>
                             {charsets.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center">No Charsets</TableCell>
+                                    <TableCell colSpan={3} align="center">No Charsets</TableCell>
                                 </TableRow>
                             ) : (
                                 charsets.map(charsetItem => (
                                     <TableRow key={charsetItem.id}>
-                                        <TableCell>{charsetItem.id}</TableCell>
                                         <TableCell>{charsetItem.charset}</TableCell>
                                         <TableCell>{charsetItem.status}</TableCell>
                                         <TableCell>
@@ -226,6 +205,167 @@ const CharsetTable = memo(({
     );
 });
 
+// Custom Fields Manager Component
+const CustomFieldsManager = memo(({ 
+    standardFields, 
+    customFields, 
+    onStandardFieldToggle, 
+    onCustomFieldAdd, 
+    onCustomFieldDelete 
+}) => {
+    const [newFieldDialog, setNewFieldDialog] = useState(false);
+    const [newFieldName, setNewFieldName] = useState('');
+
+    const handleAddField = () => {
+        if (newFieldName.trim()) {
+            onCustomFieldAdd(newFieldName.trim());
+            setNewFieldName('');
+            setNewFieldDialog(false);
+        }
+    };
+
+    const handleDeleteField = (fieldName) => {
+        if (window.confirm(`Delete custom field "${fieldName}"?`)) {
+            onCustomFieldDelete(fieldName);
+        }
+    };
+
+    return (
+        <Accordion sx={{ 
+            mt: 3,
+            backgroundColor: '#f8f9fa',
+            border: '1px solid #e3e6ea',
+            borderRadius: 1,
+            '&:before': {
+                display: 'none',
+            },
+            '&.Mui-expanded': {
+                margin: '24px 0',
+            }
+        }}>
+            <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="charset-fields-content"
+                id="charset-fields-header"
+                sx={{
+                    backgroundColor: '#f1f3f4',
+                    borderBottom: '1px solid #e3e6ea',
+                    '&:hover': {
+                        backgroundColor: '#e8eaed',
+                    },
+                    '&.Mui-expanded': {
+                        backgroundColor: '#e8eaed',
+                        minHeight: '48px',
+                    }
+                }}
+            >
+                <Typography variant="h6" sx={{ color: '#1a73e8', fontWeight: 500 }}>
+                    Charset Filter Fields
+                </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ backgroundColor: '#ffffff', p: 3 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Select which fields should be checked for charset detection in the /filter endpoint.
+                </Typography>
+
+                {/* Standard Fields */}
+                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+                    Standard Fields
+                </Typography>
+                <Box sx={{ mb: 2 }}>
+                    {standardFields.map(field => (
+                        <FormControlLabel
+                            key={field.name}
+                            control={
+                                <Checkbox
+                                    checked={field.enabled}
+                                    onChange={() => onStandardFieldToggle(field.name)}
+                                    disabled={false}
+                                />
+                            }
+                            label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    {field.name}
+                                    <Chip label="Standard" size="small" color="primary" variant="outlined" />
+                                </Box>
+                            }
+                        />
+                    ))}
+                </Box>
+
+                {/* Custom Fields */}
+                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+                    Custom Fields
+                </Typography>
+                <Box sx={{ mb: 2 }}>
+                    {customFields.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                            No custom fields added yet.
+                        </Typography>
+                    ) : (
+                        <List dense>
+                            {customFields.map(field => (
+                                <ListItem key={field.name} sx={{ py: 0.5 }}>
+                                    <ListItemText 
+                                        primary={field.name}
+                                        secondary="Custom field"
+                                    />
+                                    <ListItemSecondaryAction>
+                                        <IconButton 
+                                            edge="end" 
+                                            onClick={() => handleDeleteField(field.name)}
+                                            size="small"
+                                            color="error"
+                                        >
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </ListItemSecondaryAction>
+                                </ListItem>
+                            ))}
+                        </List>
+                    )}
+                </Box>
+
+                {/* Add Custom Field Button */}
+                <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={() => setNewFieldDialog(true)}
+                    size="small"
+                >
+                    Add Custom Field
+                </Button>
+
+                {/* Add Custom Field Dialog */}
+                <Dialog open={newFieldDialog} onClose={() => setNewFieldDialog(false)} maxWidth="sm" fullWidth>
+                    <DialogTitle>Add Custom Field</DialogTitle>
+                    <DialogContent>
+                        <TextField
+                            autoFocus
+                            margin="dense"
+                            label="Field Name"
+                            fullWidth
+                            variant="outlined"
+                            value={newFieldName}
+                            onChange={(e) => setNewFieldName(e.target.value)}
+                            placeholder="Enter field name (e.g., content, description, notes)"
+                            helperText="This field will be checked for charset detection in the /filter endpoint"
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setNewFieldDialog(false)}>Cancel</Button>
+                        <Button onClick={handleAddField} variant="contained" disabled={!newFieldName.trim()}>
+                            Add Field
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            </AccordionDetails>
+        </Accordion>
+    );
+}, (prevProps, nextProps) => {
+    return JSON.stringify(prevProps) === JSON.stringify(nextProps);
+});
+
 const CharsetForm = () => {
     const [charset, setCharset] = useState('');
     const [status, setStatus] = useState('denied');
@@ -238,8 +378,8 @@ const CharsetForm = () => {
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
-    const [orderBy, setOrderBy] = useState('id');
-    const [order, setOrder] = useState('desc');
+    const [orderBy, setOrderBy] = useState('charset');
+    const [order, setOrder] = useState('asc');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [total, setTotal] = useState(0);
@@ -249,6 +389,30 @@ const CharsetForm = () => {
     // Debounced search state
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearchValue, setDebouncedSearchValue] = useState('');
+
+    // Custom fields management state
+    const [standardFields, setStandardFields] = useState([
+        { name: 'username', enabled: true },
+        { name: 'email', enabled: true },
+        { name: 'user_agent', enabled: true }
+    ]);
+    const [customFields, setCustomFields] = useState([]);
+
+    // Load field configuration from backend
+    useEffect(() => {
+        const loadFieldConfig = async () => {
+            try {
+                const response = await axios.get('/api/charset-fields');
+                if (response.data) {
+                    setStandardFields(response.data.standard_fields || []);
+                    setCustomFields(response.data.custom_fields || []);
+                }
+            } catch (err) {
+                console.error('Failed to load field configuration:', err);
+            }
+        };
+        loadFieldConfig();
+    }, [refresh]);
 
     // Set initial filterStatus from query param
     useEffect(() => {
@@ -389,6 +553,42 @@ const CharsetForm = () => {
         }
     }, []);
 
+    // Custom fields management handlers
+    const handleStandardFieldToggle = useCallback(async (fieldName) => {
+        try {
+            await axios.post('/api/charset-fields/toggle-standard', { field_name: fieldName });
+            setStandardFields(prev => 
+                prev.map(field => 
+                    field.name === fieldName 
+                        ? { ...field, enabled: !field.enabled }
+                        : field
+                )
+            );
+            setMessage(`Standard field "${fieldName}" toggled successfully`);
+        } catch (err) {
+            setError(`Failed to toggle standard field "${fieldName}"`);
+        }
+    }, []);
+
+    const handleCustomFieldAdd = useCallback(async (fieldName) => {
+        try {
+            await axios.post('/api/charset-fields/add-custom', { field_name: fieldName });
+            setCustomFields(prev => [...prev, { name: fieldName, enabled: true, type: 'custom' }]);
+            setMessage(`Custom field "${fieldName}" added successfully`);
+        } catch (err) {
+            setError(err.response?.data?.error || `Failed to add custom field "${fieldName}"`);
+        }
+    }, []);
+
+    const handleCustomFieldDelete = useCallback(async (fieldName) => {
+        try {
+            await axios.delete(`/api/charset-fields/custom/${fieldName}`);
+            setCustomFields(prev => prev.filter(field => field.name !== fieldName));
+            setMessage(`Custom field "${fieldName}" deleted successfully`);
+        } catch (err) {
+            setError(`Failed to delete custom field "${fieldName}"`);
+        }
+    }, []);
 
 
     return (
@@ -406,6 +606,15 @@ const CharsetForm = () => {
                 />
                 {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                
+                {/* Custom Fields Management */}
+                <CustomFieldsManager
+                    standardFields={standardFields}
+                    customFields={customFields}
+                    onStandardFieldToggle={handleStandardFieldToggle}
+                    onCustomFieldAdd={handleCustomFieldAdd}
+                    onCustomFieldDelete={handleCustomFieldDelete}
+                />
                 
                 {/* Filter controls outside of table component */}
                 <Box sx={{ mt: 4, mb: 2 }}>

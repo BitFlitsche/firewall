@@ -443,8 +443,8 @@ func ValidateFilterRequest(ip, email, userAgent, country, username, content stri
 	}
 
 	// Check that at least one field is provided
-	if ip == "" && email == "" && userAgent == "" && country == "" && username == "" {
-		result.AddError("request", "At least one filter field must be provided (ip, email, user_agent, country, or username)", "")
+	if ip == "" && email == "" && userAgent == "" && country == "" && username == "" && content == "" {
+		result.AddError("request", "At least one filter field must be provided (ip, email, user_agent, country, username, or content)", "")
 	}
 
 	return result
