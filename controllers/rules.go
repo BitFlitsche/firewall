@@ -348,10 +348,10 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 		}
 		if typeFilter != "" {
 			if typeFilter == "single" {
-				conditions = append(conditions, "is_cidr = ?")
+				conditions = append(conditions, "is_c_id_r = ?")
 				args = append(args, false)
 			} else if typeFilter == "cidr" {
-				conditions = append(conditions, "is_cidr = ?")
+				conditions = append(conditions, "is_c_id_r = ?")
 				args = append(args, true)
 			}
 		}
@@ -415,15 +415,9 @@ func GetIPStats(db *gorm.DB) gin.HandlerFunc {
 		db.Model(&models.IP{}).Where("status = ?", "denied").Count(&denied)
 		db.Model(&models.IP{}).Where("status = ?", "whitelisted").Count(&whitelisted)
 
-		// Use GORM model field names instead of database column names
-		db.Model(&models.IP{}).Where("is_cidr = ?", false).Count(&single)
-		db.Model(&models.IP{}).Where("is_cidr = ?", true).Count(&cidr)
-
-		// Debug: Let's also check what the actual column name is
-		var testIP models.IP
-		if err := db.First(&testIP, 26).Error; err == nil {
-			log.Printf("Debug: IP 26 IsCIDR = %v", testIP.IsCIDR)
-		}
+		// Use the correct column name for CIDR
+		db.Raw("SELECT COUNT(*) FROM ips WHERE is_c_id_r = 0").Scan(&single)
+		db.Raw("SELECT COUNT(*) FROM ips WHERE is_c_id_r = 1").Scan(&cidr)
 
 		c.JSON(http.StatusOK, gin.H{
 			"total":       total,

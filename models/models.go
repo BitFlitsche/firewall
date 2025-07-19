@@ -7,7 +7,7 @@ type IP struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	Address   string    `gorm:"unique;not null;type:varchar(45)" json:"address" binding:"required"`                          // IPv6 max length or CIDR notation
 	Status    string    `gorm:"not null;type:varchar(20)" json:"status" binding:"required,oneof=allowed denied whitelisted"` // "denied", "allowed", "whitelisted"
-	IsCIDR    bool      `gorm:"default:false;type:boolean" json:"is_cidr"`                                                   // Whether this is a CIDR block
+	IsCIDR    bool      `gorm:"column:is_c_id_r;default:false;type:boolean" json:"is_cidr"`                                  // Correct column for CIDR flag
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
