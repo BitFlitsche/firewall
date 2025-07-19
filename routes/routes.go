@@ -124,6 +124,10 @@ func SetupRoutes(r *gin.Engine) {
 		})
 	})
 
+	// Health check routes
+	api.GET("/health", controllers.HealthCheckHandler(db))
+	api.GET("/health/simple", controllers.SimpleHealthCheckHandler())
+
 	// Service status route
 	api.GET("/status", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

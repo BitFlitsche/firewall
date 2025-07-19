@@ -185,8 +185,49 @@ docker run -p 8081:8081 \
 
 ### Health Checks
 
-- `GET /health` - Application health
-- `GET /sync/status` - Sync and locking status
+The firewall provides comprehensive health check endpoints for monitoring system status:
+
+#### **Comprehensive Health Check**
+- **Endpoint**: `GET /api/health`
+- **Description**: Detailed health checks for all system components
+- **Response**: `200 OK` (healthy) or `503 Service Unavailable` (unhealthy)
+- **Use Cases**: Detailed monitoring, alerting systems, troubleshooting
+
+#### **Simple Health Check**
+- **Endpoint**: `GET /api/health/simple`
+- **Description**: Lightweight health check for load balancers
+- **Response**: `200 OK` with basic status
+- **Use Cases**: Load balancer health checks, basic availability monitoring
+
+#### **Monitored Services**
+- **Database**: MySQL connection and query performance
+- **Elasticsearch**: Connection and ping response time
+- **Cache**: Set/get operations and performance
+- **Event Processor**: Service availability
+- **Distributed Lock Service**: Service availability
+
+#### **Example Response**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-07-19T08:34:17Z",
+  "version": "1.0.0",
+  "services": {
+    "database": {"status": "healthy"},
+    "elasticsearch": {"status": "healthy", "response_time_ms": 17},
+    "cache": {"status": "healthy"},
+    "event_processor": {"status": "healthy"},
+    "distributed_lock": {"status": "healthy"}
+  }
+}
+```
+
+For detailed documentation, see [docs/HEALTH_CHECK.md](docs/HEALTH_CHECK.md).
+
+### Additional Monitoring
+
+- `GET /api/sync/status` - Sync and locking status
+- `GET /api/system-stats` - System performance metrics
 
 ### Metrics
 
