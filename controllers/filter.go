@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"firewall/services"
-	"firewall/validation"
 	"net/http"
 	"strings"
 	"time"
@@ -275,30 +274,15 @@ func detectCharset(s string) string {
 	return "Other"
 }
 
-// getFieldValue dynamically retrieves a field value from the FilterRequest
+// getFieldValue dynamically retrieves a field value from the input map
 // This allows for custom fields to be checked for charset detection
-func getFieldValue(input FilterRequest, fieldName string) (string, bool) {
-	// Use reflection to get field value dynamically
-	// For now, we'll handle the known fields explicitly
-	switch fieldName {
-	case "ip":
-		return input.IP, true
-	case "email":
-		return input.Email, true
-	case "user_agent":
-		return input.UserAgent, true
-	case "country":
-		return input.Country, true
-	case "content":
-		return input.Content, true
-	case "username":
-		return input.Username, true
-	default:
-		// For unknown fields, return empty string
-		// In a more sophisticated implementation, you could use reflection
-		// to dynamically access any field name
-		return "", false
+func getFieldValue(input map[string]interface{}, fieldName string) (string, bool) {
+	if value, exists := input[fieldName]; exists {
+		if strValue, ok := value.(string); ok {
+			return strValue, true
+		}
 	}
+	return "", false
 }
 
 // getUnicodeScript determines the Unicode script for a rune
@@ -607,28 +591,45 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
 
-		var input FilterRequest
+		// Use a more flexible approach to handle any JSON fields
+		var input map[string]interface{}
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
 			return
 		}
 
-		// Comprehensive validation using our validation package
-		validationResult := validation.ValidateFilterRequest(input.IP, input.Email, input.UserAgent, input.Country, input.Username, input.Content)
-		if !validationResult.IsValid {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":   "Validation failed",
-				"details": validationResult.Errors,
-			})
+		// Extract standard fields
+		ip, _ := input["ip"].(string)
+		email, _ := input["email"].(string)
+		userAgent, _ := input["user_agent"].(string)
+		country, _ := input["country"].(string)
+		username, _ := input["username"].(string)
+		content, _ := input["content"].(string)
+
+		// Validate that at least one filter field is provided
+		hasAnyField := ip != "" || email != "" || userAgent != "" || country != "" || username != "" || content != ""
+
+		// Also check for any other fields that might be custom fields
+		for key, value := range input {
+			if key != "ip" && key != "email" && key != "user_agent" && key != "country" && key != "username" && key != "content" {
+				if strValue, ok := value.(string); ok && strValue != "" {
+					hasAnyField = true
+					break
+				}
+			}
+		}
+
+		if !hasAnyField {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "At least one filter field must be provided"})
 			return
 		}
 
 		// Normalize email address (remove dots for Gmail addresses)
-		normalizedEmail := normalizeEmail(input.Email)
+		normalizedEmail := normalizeEmail(email)
 
 		// Generate a cache key based on the normalized filter input
 		cache := services.GetCacheFactory()
-		cacheKey := "filter:" + input.IP + ":" + normalizedEmail + ":" + input.UserAgent + ":" + input.Country + ":" + input.Username
+		cacheKey := "filter:" + ip + ":" + normalizedEmail + ":" + userAgent + ":" + country + ":" + username
 
 		// Track cache hit status BEFORE processing
 		cacheHit := false
@@ -641,12 +642,12 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 
 				// Convert to traffic logging format
 				trafficReq := services.FilterRequest{
-					IPAddress: input.IP,
-					Email:     input.Email,
-					UserAgent: input.UserAgent,
-					Username:  input.Username,
-					Country:   input.Country,
-					Content:   input.Content,
+					IPAddress: ip,
+					Email:     email,
+					UserAgent: userAgent,
+					Username:  username,
+					Country:   country,
+					Content:   content,
 				}
 
 				// Create filter result for cache hit
@@ -722,13 +723,11 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 		for _, fieldName := range enabledFields {
 			switch fieldName {
 			case "email":
-				fields["email"] = input.Email // Use original email for charset detection
+				fields["email"] = email // Use original email for charset detection
 			case "user_agent":
-				fields["user_agent"] = input.UserAgent
+				fields["user_agent"] = userAgent
 			case "username":
-				fields["username"] = input.Username
-			case "content":
-				fields["content"] = input.Content
+				fields["username"] = username
 			default:
 				// For custom fields, try to get from input dynamically
 				// This allows for any field name to be checked
@@ -768,7 +767,7 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 		defer cancel()
 
 		// Call the service to evaluate filters with normalized email
-		finalResult, err := services.EvaluateFilters(ctx, input.IP, normalizedEmail, input.UserAgent, input.Country, input.Username)
+		finalResult, err := services.EvaluateFilters(ctx, ip, normalizedEmail, userAgent, country, username)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				c.JSON(http.StatusGatewayTimeout, gin.H{"error": "request timed out"})
@@ -787,12 +786,12 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 
 			// Convert to traffic logging format
 			trafficReq := services.FilterRequest{
-				IPAddress: input.IP,
-				Email:     input.Email,
-				UserAgent: input.UserAgent,
-				Username:  input.Username,
-				Country:   input.Country,
-				Content:   input.Content,
+				IPAddress: ip,
+				Email:     email,
+				UserAgent: userAgent,
+				Username:  username,
+				Country:   country,
+				Content:   content,
 			}
 
 			// Create filter result
