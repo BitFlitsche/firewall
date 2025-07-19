@@ -49,7 +49,9 @@ const FilterForm = () => {
                 username: ''
             });
         } catch (err) {
-            setError('Error applying filter');
+            // Extract error message from API response
+            const errorMessage = err.response?.data?.error || err.message || 'Error applying filter';
+            setError(errorMessage);
         }
     };
 

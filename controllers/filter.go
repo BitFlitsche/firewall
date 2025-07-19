@@ -270,6 +270,12 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Validate that at least one filter field is provided
+		if input.IP == "" && input.Email == "" && input.UserAgent == "" && input.Country == "" && input.Username == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "At least one filter field must be provided (ip, email, user_agent, country, or username)"})
+			return
+		}
+
 		// Normalize email address (remove dots for Gmail addresses)
 		normalizedEmail := normalizeEmail(input.Email)
 

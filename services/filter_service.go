@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"firewall/config"
 	"firewall/models"
+	"firewall/utils"
 	"fmt"
 	"log"
 	"regexp"
@@ -63,20 +64,30 @@ func collectResults(ctx context.Context, result chan FilterResult) (FilterResult
 
 // filterIP runs the IP filter
 func filterIP(ctx context.Context, ip string, result chan FilterResult) {
+	// Handle empty IP addresses - treat as invalid input
+	if ip == "" {
+		result <- FilterResult{Result: "allowed", Reason: "empty ip address", Field: "ip", Value: ip}
+		return
+	}
+
 	es := config.ESClient
 
-	// IP filter uses simple exact match (no regex functionality)
-	query := `{
+	// First check for exact IP matches (including existing data without is_cidr field)
+	exactQuery := `{
 		"query": {
-			"term": {
-				"address.keyword": "` + ip + `"
+			"bool": {
+				"should": [
+					{"bool": {"must": [{"term": {"address.keyword": "` + ip + `"}}, {"term": {"is_cidr": false}}]}},
+					{"bool": {"must": [{"term": {"address.keyword": "` + ip + `"}}, {"bool": {"must_not": {"exists": {"field": "is_cidr"}}}}]}}
+				],
+				"minimum_should_match": 1
 			}
 		}
 	}`
 
 	req := esapi.SearchRequest{
 		Index: []string{"ip-addresses"},
-		Body:  strings.NewReader(query),
+		Body:  strings.NewReader(exactQuery),
 	}
 
 	res, err := req.Do(ctx, es)
@@ -106,12 +117,66 @@ func filterIP(ctx context.Context, ip string, result chan FilterResult) {
 			} else {
 				result <- FilterResult{Result: "allowed", Field: "ip", Value: ip}
 			}
-		} else {
-			result <- FilterResult{Result: "allowed", Field: "ip", Value: ip}
+			return
 		}
-	} else {
-		result <- FilterResult{Result: "error", Reason: "no hits", Field: "ip", Value: ip}
 	}
+
+	// If no exact match, check CIDR blocks
+	cidrQuery := `{
+		"query": {
+			"bool": {
+				"must": [
+					{"term": {"is_cidr": true}}
+				]
+			}
+		}
+	}`
+
+	req = esapi.SearchRequest{
+		Index: []string{"ip-addresses"},
+		Body:  strings.NewReader(cidrQuery),
+	}
+
+	res, err = req.Do(ctx, es)
+	if err != nil {
+		result <- FilterResult{Result: "error", Reason: "elasticsearch error", Field: "ip", Value: ip}
+		return
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+		result <- FilterResult{Result: "error", Reason: "decode error", Field: "ip", Value: ip}
+		return
+	}
+
+	if hits, found := r["hits"].(map[string]interface{}); found {
+		hitsList := hits["hits"].([]interface{})
+		for _, hit := range hitsList {
+			hitMap := hit.(map[string]interface{})
+			source := hitMap["_source"].(map[string]interface{})
+			cidrBlock := source["address"].(string)
+			status := source["status"].(string)
+
+			// Check if IP falls within this CIDR block
+			inRange, err := utils.IsIPInCIDR(ip, cidrBlock)
+			if err != nil {
+				continue // Skip invalid CIDR blocks
+			}
+			if inRange {
+				if status == "denied" {
+					result <- FilterResult{Result: "denied", Reason: "ip cidr denied", Field: "ip", Value: ip}
+				} else if status == "whitelisted" {
+					result <- FilterResult{Result: "whitelisted", Reason: "ip cidr whitelisted", Field: "ip", Value: ip}
+				} else {
+					result <- FilterResult{Result: "allowed", Field: "ip", Value: ip}
+				}
+				return
+			}
+		}
+	}
+
+	// No matches found
+	result <- FilterResult{Result: "allowed", Field: "ip", Value: ip}
 }
 
 // filterEmail runs the email filter

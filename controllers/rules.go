@@ -160,6 +160,7 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 		page := c.DefaultQuery("page", "1")
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
+		typeFilter := c.Query("type")
 		search := c.Query("search")
 		orderBy := c.DefaultQuery("orderBy", "ID")
 		order := c.DefaultQuery("order", "desc")
@@ -183,6 +184,15 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 		if status != "" {
 			conditions = append(conditions, "status = ?")
 			args = append(args, status)
+		}
+		if typeFilter != "" {
+			if typeFilter == "single" {
+				conditions = append(conditions, "is_cidr = ?")
+				args = append(args, false)
+			} else if typeFilter == "cidr" {
+				conditions = append(conditions, "is_cidr = ?")
+				args = append(args, true)
+			}
 		}
 		if search != "" {
 			conditions = append(conditions, "address LIKE ?")
@@ -246,16 +256,29 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 // Count-Stats für IPs
 func GetIPStats(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var total, allowed, denied, whitelisted int64
+		var total, allowed, denied, whitelisted, single, cidr int64
 		db.Model(&models.IP{}).Count(&total)
 		db.Model(&models.IP{}).Where("status = ?", "allowed").Count(&allowed)
 		db.Model(&models.IP{}).Where("status = ?", "denied").Count(&denied)
 		db.Model(&models.IP{}).Where("status = ?", "whitelisted").Count(&whitelisted)
+
+		// Use GORM model field names instead of database column names
+		db.Model(&models.IP{}).Where("is_cidr = ?", false).Count(&single)
+		db.Model(&models.IP{}).Where("is_cidr = ?", true).Count(&cidr)
+
+		// Debug: Let's also check what the actual column name is
+		var testIP models.IP
+		if err := db.First(&testIP, 26).Error; err == nil {
+			log.Printf("Debug: IP 26 IsCIDR = %v", testIP.IsCIDR)
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"total":       total,
 			"allowed":     allowed,
 			"denied":      denied,
 			"whitelisted": whitelisted,
+			"single":      single,
+			"cidr":        cidr,
 		})
 	}
 }
@@ -276,6 +299,7 @@ func UpdateIPAddress(db *gorm.DB) gin.HandlerFunc {
 		}
 		ip.Address = input.Address
 		ip.Status = input.Status
+		ip.IsCIDR = input.IsCIDR
 		if err := db.Save(&ip).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update IP address"})
 			return

@@ -22,6 +22,9 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import TableSortLabel from '@mui/material/TableSortLabel';
 import TablePagination from '@mui/material/TablePagination';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Tooltip from '@mui/material/Tooltip';
 import { useLocation } from 'react-router-dom';
 
 
@@ -29,22 +32,25 @@ import { useLocation } from 'react-router-dom';
 const IPFormComponent = React.memo(({ 
     ip, 
     status, 
+    isCidr,
     message, 
     error, 
     editId, 
     onIpChange, 
     onStatusChange, 
+    onCidrChange,
     onSubmit, 
     onCancelEdit 
 }) => (
     <Box component="form" onSubmit={onSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'stretch', mb: 2 }}>
         <TextField
-            label="IP Address"
+            label="IP Address or CIDR Block"
             value={ip}
             onChange={onIpChange}
-            placeholder="Enter IP address"
+            placeholder={isCidr ? "Enter CIDR (e.g., 192.168.1.0/24)" : "Enter IP address"}
             required
             fullWidth
+            helperText={isCidr ? "CIDR format: IP/prefix (e.g., 10.0.0.0/8, 172.16.0.0/12)" : ""}
         />
         <TextField
             select
@@ -57,6 +63,20 @@ const IPFormComponent = React.memo(({
             <MenuItem value="allowed">Allowed</MenuItem>
             <MenuItem value="whitelisted">Whitelisted</MenuItem>
         </TextField>
+        <FormControlLabel
+            control={
+                <Checkbox
+                    checked={isCidr}
+                    onChange={onCidrChange}
+                    color="primary"
+                />
+            }
+            label={
+                <Tooltip title="Check this to add a CIDR block (IP range) instead of a single IP address">
+                    <span>CIDR Block</span>
+                </Tooltip>
+            }
+        />
         <Button type="submit" variant="contained" color="primary">
             {editId ? 'Update IP' : 'Add IP'}
         </Button>
@@ -72,9 +92,12 @@ const IPFormComponent = React.memo(({
 const FilterControls = React.memo(({ 
     searchValue, 
     filterStatus, 
+    filterType,
     globalStatusCounts,
+    globalTypeCounts,
     onSearchChange, 
     onStatusChange, 
+    onTypeChange,
     onReset,
     onSearchFocus,
     onSearchBlur,
@@ -116,6 +139,31 @@ const FilterControls = React.memo(({
                 </MenuItem>
                 <MenuItem key="whitelisted" value="whitelisted">
                     Whitelisted ({globalStatusCounts.whitelisted})
+                </MenuItem>
+            </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel shrink>Type</InputLabel>
+            <Select
+                value={filterType}
+                label="Type"
+                onChange={onTypeChange}
+                displayEmpty
+                renderValue={(selected) => {
+                    if (!selected) return `All (${globalTypeCounts.total})`;
+                    if (selected === 'single') return `Single IP (${globalTypeCounts.single})`;
+                    if (selected === 'cidr') return `CIDR Block (${globalTypeCounts.cidr})`;
+                    return selected;
+                }}
+            >
+                <MenuItem key="" value="">
+                    All ({globalTypeCounts.total})
+                </MenuItem>
+                <MenuItem key="single" value="single">
+                    Single IP ({globalTypeCounts.single})
+                </MenuItem>
+                <MenuItem key="cidr" value="cidr">
+                    CIDR Block ({globalTypeCounts.cidr})
                 </MenuItem>
             </Select>
         </FormControl>
@@ -175,7 +223,7 @@ const IPTable = React.memo(({
                                         direction={orderBy === 'Address' ? order : 'asc'}
                                         onClick={() => onSort('Address')}
                                     >
-                                        IP Address
+                                        IP Address / CIDR
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
@@ -187,6 +235,7 @@ const IPTable = React.memo(({
                                         Status
                                     </TableSortLabel>
                                 </TableCell>
+                                <TableCell>Type</TableCell>
                                 <TableCell>Actions</TableCell>
                             </TableRow>
                         </TableHead>
@@ -201,6 +250,7 @@ const IPTable = React.memo(({
                                         <TableCell>{ipItem.ID}</TableCell>
                                         <TableCell>{ipItem.Address}</TableCell>
                                         <TableCell>{ipItem.Status}</TableCell>
+                                        <TableCell>{ipItem.IsCIDR ? 'CIDR Block' : 'Single IP'}</TableCell>
                                         <TableCell>
                                             <IconButton onClick={() => onEdit(ipItem)} size="small">
                                                 <EditIcon />
@@ -233,6 +283,7 @@ const IPTable = React.memo(({
 const IPForm = () => {
     const [ip, setIp] = useState('');
     const [status, setStatus] = useState('denied');
+    const [isCidr, setIsCidr] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [refresh, setRefresh] = useState(false);
@@ -242,12 +293,14 @@ const IPForm = () => {
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
+    const [filterType, setFilterType] = useState('');
     const [orderBy, setOrderBy] = useState('ID');
     const [order, setOrder] = useState('desc');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [total, setTotal] = useState(0);
     const [globalStatusCounts, setGlobalStatusCounts] = useState({ allowed: 0, denied: 0, whitelisted: 0, total: 0 });
+    const [globalTypeCounts, setGlobalTypeCounts] = useState({ single: 0, cidr: 0, total: 0 });
     const location = useLocation();
 
     // Debounced search state
@@ -265,7 +318,7 @@ const IPForm = () => {
         }
     }, [location.search]);
 
-    // Load global status counts
+    // Load global status and type counts
     useEffect(() => {
         axiosInstance.get('/api/ips/stats')
             .then(res => {
@@ -275,8 +328,16 @@ const IPForm = () => {
                     whitelisted: res.data.whitelisted || 0,
                     total: res.data.total || 0,
                 });
+                setGlobalTypeCounts({
+                    single: res.data.single || 0,
+                    cidr: res.data.cidr || 0,
+                    total: res.data.total || 0,
+                });
             })
-            .catch(() => setGlobalStatusCounts({ allowed: 0, denied: 0, whitelisted: 0, total: 0 }));
+            .catch(() => {
+                setGlobalStatusCounts({ allowed: 0, denied: 0, whitelisted: 0, total: 0 });
+                setGlobalTypeCounts({ single: 0, cidr: 0, total: 0 });
+            });
     }, [refresh]);
 
     // Debounce search input
@@ -308,6 +369,7 @@ const IPForm = () => {
                         page: page + 1,
                         limit: rowsPerPage,
                         status: filterStatus || undefined,
+                        type: filterType || undefined,
                         search: debouncedSearchValue || undefined,
                         orderBy,
                         order,
@@ -327,7 +389,7 @@ const IPForm = () => {
             }
         };
         fetchIPs();
-    }, [refresh, page, rowsPerPage, filterStatus, debouncedSearchValue, orderBy, order]);
+    }, [refresh, page, rowsPerPage, filterStatus, filterType, debouncedSearchValue, orderBy, order]);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
@@ -337,24 +399,27 @@ const IPForm = () => {
             if (editId) {
                 await axiosInstance.put(`/api/ip/${editId}`, {
                     Address: ip,
-                    Status: status
+                    Status: status,
+                    IsCIDR: isCidr
                 });
                 setMessage('IP address updated successfully');
             } else {
                 await axiosInstance.post('/api/ip', {
                     Address: ip,
-                    Status: status
+                    Status: status,
+                    IsCIDR: isCidr
                 });
                 setMessage('IP address added successfully');
             }
             setIp('');
             setStatus('denied');
+            setIsCidr(false);
             setEditId(null);
             setRefresh(r => !r);
         } catch (error) {
             setError(error.response?.data?.error || 'Error saving IP address');
         }
-    }, [ip, status, editId]);
+    }, [ip, status, isCidr, editId]);
 
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this IP address?')) return;
@@ -370,6 +435,7 @@ const IPForm = () => {
     const handleEdit = useCallback((ipItem) => {
         setIp(ipItem.Address);
         setStatus(ipItem.Status);
+        setIsCidr(ipItem.IsCIDR || false);
         setEditId(ipItem.ID);
     }, []);
 
@@ -396,14 +462,24 @@ const IPForm = () => {
         setPage(0); // Reset to first page when searching
     }, []);
 
+    const handleCidrChange = useCallback((e) => {
+        setIsCidr(e.target.checked);
+    }, []);
+
     const handleStatusChange = useCallback((e) => {
         setFilterStatus(e.target.value);
+        setPage(0); // Reset to first page when filtering
+    }, []);
+
+    const handleTypeChange = useCallback((e) => {
+        setFilterType(e.target.value);
         setPage(0); // Reset to first page when filtering
     }, []);
 
     const handleReset = useCallback(() => {
         setSearchValue('');
         setFilterStatus('');
+        setFilterType('');
         setPage(0);
     }, []);
 
@@ -418,6 +494,7 @@ const IPForm = () => {
     const handleCancelEdit = useCallback(() => {
         setIp('');
         setStatus('denied');
+        setIsCidr(false);
         setEditId(null);
     }, []);
 
@@ -433,26 +510,31 @@ const IPForm = () => {
     const formProps = React.useMemo(() => ({
         ip,
         status,
+        isCidr,
         message,
         error,
         editId,
         onIpChange: handleIpChange,
         onStatusChange: handleStatusChangeForm,
+        onCidrChange: handleCidrChange,
         onSubmit: handleSubmit,
         onCancelEdit: handleCancelEdit
-    }), [ip, status, message, error, editId, handleIpChange, handleStatusChangeForm, handleSubmit, handleCancelEdit]);
+    }), [ip, status, isCidr, message, error, editId, handleIpChange, handleStatusChangeForm, handleCidrChange, handleSubmit, handleCancelEdit]);
 
     const filterProps = React.useMemo(() => ({
         searchValue,
         filterStatus,
+        filterType,
         globalStatusCounts,
+        globalTypeCounts,
         onSearchChange: handleSearchChange,
         onStatusChange: handleStatusChange,
+        onTypeChange: handleTypeChange,
         onReset: handleReset,
         onSearchFocus: handleSearchFocus,
         onSearchBlur: handleSearchBlur,
         searchInputRef
-    }), [searchValue, filterStatus, globalStatusCounts, handleSearchChange, handleStatusChange, handleReset, handleSearchFocus, handleSearchBlur]);
+    }), [searchValue, filterStatus, filterType, globalStatusCounts, globalTypeCounts, handleSearchChange, handleStatusChange, handleTypeChange, handleReset, handleSearchFocus, handleSearchBlur]);
 
     const tableProps = React.useMemo(() => ({
         ips,

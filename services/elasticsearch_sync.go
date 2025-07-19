@@ -20,6 +20,7 @@ func IndexIPAddress(ip models.IP) error {
 	doc := map[string]interface{}{
 		"address": ip.Address,
 		"status":  ip.Status,
+		"is_cidr": ip.IsCIDR,
 	}
 
 	docJSON, err := json.Marshal(doc)
@@ -28,9 +29,11 @@ func IndexIPAddress(ip models.IP) error {
 	}
 
 	// Index the document
+	// Use database ID as document ID to avoid issues with special characters in CIDR notation
+	docID := fmt.Sprintf("%d", ip.ID)
 	req := esapi.IndexRequest{
 		Index:      "ip-addresses",
-		DocumentID: ip.Address, // Use IP as document ID
+		DocumentID: docID,
 		Body:       strings.NewReader(string(docJSON)),
 	}
 

@@ -5,8 +5,9 @@ import "time"
 // IP represents the structure for the IP addresses table
 type IP struct {
 	ID        uint      `gorm:"primaryKey"`
-	Address   string    `gorm:"unique;not null;type:varchar(45)"` // IPv6 max length
+	Address   string    `gorm:"unique;not null;type:varchar(45)"` // IPv6 max length or CIDR notation
 	Status    string    `gorm:"not null;type:varchar(20)"`        // "denied", "allowed", "whitelisted"
+	IsCIDR    bool      `gorm:"default:false;type:boolean"`       // Whether this is a CIDR block
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`
 }
