@@ -31,10 +31,24 @@ func main() {
 		log.Fatalf("Migration failed: %v", err)
 	}
 
+	// Seed countries if table is empty
+	if err := services.SeedCountries(config.DB); err != nil {
+		log.Printf("Warning: Country seeding failed: %v", err)
+	}
+
 	config.InitElasticsearch()
 
 	// Initialize all services
 	log.Println("Initializing services...")
+
+	// Initialize GeoIP service
+	if err := services.InitGeoIP(); err != nil {
+		log.Printf("Warning: GeoIP initialization failed: %v", err)
+		log.Println("Geographic filtering will be disabled")
+	} else {
+		log.Println("GeoIP service initialized successfully")
+	}
+	defer services.CloseGeoIP()
 
 	// Initialize cache factory (switches between in-memory and distributed based on config)
 	_ = services.GetCacheFactory()

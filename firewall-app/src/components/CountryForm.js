@@ -22,16 +22,19 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import { useLocation } from 'react-router-dom';
+import CountryFlag from './CountryFlag';
 
 
 // Memoized Form Component
 const CountryFormComponent = React.memo(({ 
     country, 
+    name,
     status, 
     message, 
     error, 
     editId, 
     onCountryChange, 
+    onNameChange,
     onStatusChange, 
     onSubmit, 
     onCancelEdit 
@@ -42,6 +45,14 @@ const CountryFormComponent = React.memo(({
             value={country}
             onChange={onCountryChange}
             placeholder="Enter Country Code (e.g. DE)"
+            required
+            fullWidth
+        />
+        <TextField
+            label="Country Name"
+            value={name}
+            onChange={onNameChange}
+            placeholder="Enter Country Name (e.g. Germany)"
             required
             fullWidth
         />
@@ -161,11 +172,11 @@ const CountryTable = React.memo(({
                             <TableRow>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'id'}
-                                        direction={orderBy === 'id' ? order : 'asc'}
-                                        onClick={() => onSort('id')}
+                                        active={orderBy === 'code'}
+                                        direction={orderBy === 'code' ? order : 'asc'}
+                                        onClick={() => onSort('code')}
                                     >
-                                        ID
+                                        Flag
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
@@ -175,6 +186,15 @@ const CountryTable = React.memo(({
                                         onClick={() => onSort('code')}
                                     >
                                         Country Code
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={orderBy === 'name'}
+                                        direction={orderBy === 'name' ? order : 'asc'}
+                                        onClick={() => onSort('name')}
+                                    >
+                                        Country Name
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
@@ -192,13 +212,16 @@ const CountryTable = React.memo(({
                         <TableBody>
                             {countries.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center">No countries</TableCell>
+                                    <TableCell colSpan={5} align="center">No countries</TableCell>
                                 </TableRow>
                             ) : (
                                 countries.map((countryItem) => (
                                     <TableRow key={countryItem.id}>
-                                        <TableCell>{countryItem.id}</TableCell>
+                                        <TableCell>
+                                            <CountryFlag countryCode={countryItem.code} size={24} />
+                                        </TableCell>
                                         <TableCell>{countryItem.code}</TableCell>
+                                        <TableCell>{countryItem.name || 'Unknown Country'}</TableCell>
                                         <TableCell>{countryItem.status}</TableCell>
                                         <TableCell>
                                             <IconButton onClick={() => onEdit(countryItem)} size="small">
@@ -231,6 +254,7 @@ const CountryTable = React.memo(({
 
 const CountryForm = () => {
     const [country, setCountry] = useState('');
+    const [name, setName] = useState('');
     const [status, setStatus] = useState('denied');
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
@@ -241,8 +265,8 @@ const CountryForm = () => {
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
-    const [orderBy, setOrderBy] = useState('id');
-    const [order, setOrder] = useState('desc');
+    const [orderBy, setOrderBy] = useState('name'); // Changed default to 'name'
+    const [order, setOrder] = useState('asc');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [total, setTotal] = useState(0);
@@ -334,20 +358,29 @@ const CountryForm = () => {
         setError('');
         try {
             if (editId) {
-                await axios.put(`/api/country/${editId}`, { Code: country, Status: status });
+                await axios.put(`/api/country/${editId}`, { 
+                    Code: country, 
+                    Name: name,
+                    Status: status 
+                });
                 setMessage('Country updated successfully');
             } else {
-                await axios.post('/api/country', { Code: country, Status: status });
+                await axios.post('/api/country', { 
+                    Code: country, 
+                    Name: name,
+                    Status: status 
+                });
                 setMessage('Country added successfully');
             }
             setCountry('');
+            setName('');
             setStatus('denied');
             setEditId(null);
             setRefresh(r => !r);
         } catch (err) {
             setError('Error saving country');
         }
-    }, [country, status, editId]);
+    }, [country, name, status, editId]);
 
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this country?')) return;
@@ -361,7 +394,8 @@ const CountryForm = () => {
     }, []);
 
     const handleEdit = useCallback((countryItem) => {
-        setCountry(countryItem.country);
+        setCountry(countryItem.code);
+        setName(countryItem.name || '');
         setStatus(countryItem.status);
         setEditId(countryItem.id);
     }, []);
@@ -410,12 +444,17 @@ const CountryForm = () => {
 
     const handleCancelEdit = useCallback(() => {
         setCountry('');
+        setName('');
         setStatus('denied');
         setEditId(null);
     }, []);
 
     const handleCountryChange = useCallback((e) => {
         setCountry(e.target.value);
+    }, []);
+
+    const handleNameChange = useCallback((e) => {
+        setName(e.target.value);
     }, []);
 
     const handleStatusChangeForm = useCallback((e) => {
@@ -425,15 +464,17 @@ const CountryForm = () => {
     // Memoized values for components
     const formProps = React.useMemo(() => ({
         country,
+        name,
         status,
         message,
         error,
         editId,
         onCountryChange: handleCountryChange,
+        onNameChange: handleNameChange,
         onStatusChange: handleStatusChangeForm,
         onSubmit: handleSubmit,
         onCancelEdit: handleCancelEdit
-    }), [country, status, message, error, editId, handleCountryChange, handleStatusChangeForm, handleSubmit, handleCancelEdit]);
+    }), [country, name, status, message, error, editId, handleCountryChange, handleNameChange, handleStatusChangeForm, handleSubmit, handleCancelEdit]);
 
     const filterProps = React.useMemo(() => ({
         searchValue,

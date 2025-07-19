@@ -5,6 +5,7 @@ A comprehensive firewall management system with Go backend and React frontend.
 ## Features
 
 - **Real-time filtering** with support for IPs, emails, user agents, countries, charsets, and usernames
+- **Geographic filtering** with automatic IP geolocation using MaxMind GeoLite2 database
 - **Server-side filtering, sorting, and pagination** for optimal performance
 - **Elasticsearch integration** for advanced search capabilities
 - **Configurable distributed locking** for single and multi-instance deployments
@@ -146,6 +147,36 @@ The system automatically detects conflicts when adding IP addresses or CIDR rang
 - `PUT /api/ip/:id` - Update with conflict detection
 
 For detailed conflict detection documentation, see [docs/CONFLICT_DETECTION.md](docs/CONFLICT_DETECTION.md).
+
+### Geographic Filtering
+
+The system supports automatic geographic filtering using MaxMind's GeoLite2 database:
+
+- **Automatic Geolocation**: IP addresses are automatically geolocated to countries
+- **Manual Override**: Users can provide country codes manually
+- **Private IP Handling**: Private/local IPs are skipped for geolocation
+- **Country Rules**: Uses existing country filtering system
+- **Performance**: Fast local database lookups with no external API calls
+
+**Usage Examples:**
+```bash
+# Automatic geolocation
+curl -X POST http://localhost:8081/api/filter \
+  -H "Content-Type: application/json" \
+  -d '{"ip": "91.67.0.1", "country": ""}'
+# Response: {"result":"denied","reason":"country denied","field":"country","value":"DE"}
+
+# Manual country override
+curl -X POST http://localhost:8081/api/filter \
+  -H "Content-Type: application/json" \
+  -d '{"ip": "8.8.8.8", "country": "DE"}'
+# Response: {"result":"denied","reason":"country denied","field":"country","value":"DE"}
+```
+
+**Required Files:**
+- `GeoLite2-Country.mmdb` in the root directory (~9MB)
+
+For detailed geographic filtering documentation, see [docs/GEOGRAPHIC_FILTERING.md](docs/GEOGRAPHIC_FILTERING.md).
 
 ## Development
 

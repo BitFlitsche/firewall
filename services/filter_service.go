@@ -31,6 +31,15 @@ func EvaluateFilters(ctx context.Context, ip, email, userAgent, country, usernam
 	// Channel to collect filter results
 	results := make(chan FilterResult, 5)
 
+	// Auto-geolocate IP if country is empty and IP is provided
+	if country == "" && ip != "" {
+		country = GetCountryFromIPWithFallback(ip)
+		// Log the geolocation result for debugging
+		if country != "" {
+			fmt.Printf("Auto-geolocated IP %s to country: %s\n", ip, country)
+		}
+	}
+
 	// Start filters concurrently
 	go filterIP(ctx, ip, results)
 	go filterEmail(ctx, email, results)

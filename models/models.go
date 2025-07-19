@@ -36,6 +36,7 @@ type UserAgent struct {
 type Country struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	Code      string    `gorm:"unique;not null;type:varchar(2)" json:"code" binding:"required,len=2,alpha"`                  // ISO 3166-1 alpha-2 code
+	Name      string    `gorm:"not null;type:varchar(100)" json:"name" binding:"required,max=100"`                           // Country name
 	Status    string    `gorm:"not null;type:varchar(20)" json:"status" binding:"required,oneof=allowed denied whitelisted"` // "denied", "allowed", "whitelisted"
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`

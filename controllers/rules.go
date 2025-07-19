@@ -1092,8 +1092,8 @@ func GetCountries(db *gorm.DB) gin.HandlerFunc {
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
 		search := c.Query("search")
-		orderBy := c.DefaultQuery("orderBy", "id")
-		order := c.DefaultQuery("order", "desc")
+		orderBy := c.DefaultQuery("orderBy", "name")
+		order := c.DefaultQuery("order", "asc")
 
 		pageNum := 1
 		limitNum := 10
@@ -1126,17 +1126,18 @@ func GetCountries(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Validate orderBy and order
-		if orderBy != "id" && orderBy != "code" && orderBy != "status" {
-			orderBy = "id"
+		if orderBy != "id" && orderBy != "code" && orderBy != "name" && orderBy != "status" {
+			orderBy = "name"
 		}
 		if order != "asc" && order != "desc" {
-			order = "desc"
+			order = "asc"
 		}
 
 		// Map frontend field names to database column names
 		orderByMap := map[string]string{
 			"id":     "ID",
 			"code":   "Code",
+			"name":   "Name",
 			"status": "Status",
 		}
 		dbOrderBy := orderByMap[orderBy]
