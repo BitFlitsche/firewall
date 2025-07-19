@@ -4,6 +4,7 @@ package controllers
 import (
 	"firewall/models"
 	"firewall/services"
+	"firewall/utils"
 	"firewall/validation"
 	"fmt"
 	"log"
@@ -118,6 +119,7 @@ func SystemStatsHandler(db *gorm.DB) gin.HandlerFunc {
 // @Param        ip  body      models.IP  true  "IP-Daten"
 // @Success      200 {object}  models.IP
 // @Failure      400 {object}  map[string]string
+// @Failure      409 {object}  map[string]string
 // @Failure      500 {object}  map[string]string
 // @Router       /ip [post]
 func CreateIPAddress(db *gorm.DB) gin.HandlerFunc {
@@ -145,7 +147,92 @@ func CreateIPAddress(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Check if IP already exists
+		// Check for conflicts with existing entries
+		var existingIPs []models.IP
+		if err := db.Find(&existingIPs).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check for conflicts"})
+			return
+		}
+
+		// Extract existing IPs and CIDR ranges with their statuses
+		var existingIPAddresses []string
+		var existingCIDRs []string
+		existingStatuses := make(map[string]string)
+
+		for _, existing := range existingIPs {
+			if existing.IsCIDR {
+				existingCIDRs = append(existingCIDRs, existing.Address)
+				existingStatuses[existing.Address] = existing.Status
+			} else {
+				existingIPAddresses = append(existingIPAddresses, existing.Address)
+				existingStatuses[existing.Address] = existing.Status
+			}
+		}
+
+		// Check conflicts based on whether new entry is IP or CIDR
+		var conflicts []utils.ConflictInfo
+		var err error
+
+		if ip.IsCIDR {
+			// New entry is a CIDR range - check for conflicts
+			conflicts, err = utils.CheckCIDRConflicts(ip.Address, existingIPAddresses, existingCIDRs, existingStatuses, ip.Status)
+		} else {
+			// New entry is an IP address - check if it's covered by existing CIDR ranges
+			conflicts, err = utils.CheckIPConflicts(ip.Address, existingCIDRs, existingStatuses, ip.Status)
+		}
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check conflicts", "details": err.Error()})
+			return
+		}
+
+		// If there are conflicts, return them
+		if len(conflicts) > 0 {
+			// Check if any conflicts are errors (not just warnings)
+			hasErrors := false
+			for _, conflict := range conflicts {
+				if conflict.Severity == "error" {
+					hasErrors = true
+					break
+				}
+			}
+
+			if hasErrors {
+				// Build detailed error message with conflicting records
+				var conflictDetails []string
+				for _, conflict := range conflicts {
+					conflictDetails = append(conflictDetails, conflict.Message)
+				}
+
+				errorMessage := "IP/CIDR conflicts detected"
+				if len(conflictDetails) > 0 {
+					errorMessage = fmt.Sprintf("IP/CIDR conflicts detected: %s", strings.Join(conflictDetails, "; "))
+				}
+
+				c.JSON(http.StatusConflict, gin.H{
+					"error":     errorMessage,
+					"conflicts": conflicts,
+					"message":   "Please review conflicts before proceeding",
+				})
+				return
+			} else {
+				// Only warnings - allow creation but inform user
+				var conflictDetails []string
+				for _, conflict := range conflicts {
+					conflictDetails = append(conflictDetails, conflict.Message)
+				}
+
+				warningMessage := "IP/CIDR overlaps detected"
+				if len(conflictDetails) > 0 {
+					warningMessage = fmt.Sprintf("IP/CIDR overlaps detected: %s", strings.Join(conflictDetails, "; "))
+				}
+
+				// Log warning but continue with creation
+				log.Printf("Warning: %s", warningMessage)
+			}
+		}
+
+		// Check if IP already exists (exact match)
 		var existingIP models.IP
 		if err := db.Where("address = ?", ip.Address).First(&existingIP).Error; err == nil {
 			c.JSON(http.StatusConflict, gin.H{"error": "IP address already exists", "address": ip.Address})
@@ -186,7 +273,7 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 		status := c.Query("status")
 		typeFilter := c.Query("type")
 		search := c.Query("search")
-		orderBy := c.DefaultQuery("orderBy", "ID")
+		orderBy := c.DefaultQuery("orderBy", "id")
 		order := c.DefaultQuery("order", "desc")
 
 		// Validate query parameters
@@ -224,15 +311,20 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Validate orderBy and order
-		validFields := []string{"ID", "Address", "Status"}
-		orderValidation := validation.ValidateOrderBy(orderBy, order, validFields)
-		if !orderValidation.IsValid {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":   "Invalid ordering parameters",
-				"details": orderValidation.Errors,
-			})
-			return
+		if orderBy != "id" && orderBy != "address" && orderBy != "status" {
+			orderBy = "id"
 		}
+		if order != "asc" && order != "desc" {
+			order = "desc"
+		}
+
+		// Map frontend field names to database column names
+		orderByMap := map[string]string{
+			"id":      "ID",
+			"address": "Address",
+			"status":  "Status",
+		}
+		dbOrderBy := orderByMap[orderBy]
 
 		// Umwandlung
 		pageNum := 1
@@ -274,14 +366,6 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 			whereClause = "WHERE " + strings.Join(conditions, " AND ")
 		}
 
-		// Validate orderBy and order
-		if orderBy != "ID" && orderBy != "Address" && orderBy != "Status" {
-			orderBy = "ID"
-		}
-		if order != "asc" && order != "desc" {
-			order = "desc"
-		}
-
 		// Use COUNT(*) OVER() for single query optimization
 		query := fmt.Sprintf(`
 			SELECT *, COUNT(*) OVER() as total_count 
@@ -289,7 +373,7 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 			%s 
 			ORDER BY %s %s 
 			LIMIT ? OFFSET ?
-		`, whereClause, orderBy, order)
+		`, whereClause, dbOrderBy, order)
 
 		// Add pagination parameters
 		args = append(args, limitNum, (pageNum-1)*limitNum)
@@ -390,6 +474,80 @@ func UpdateIPAddress(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":   "Validation failed",
 				"details": errors,
+			})
+			return
+		}
+
+		// Check for conflicts with existing entries (excluding current record)
+		var existingIPs []models.IP
+		if err := db.Where("id != ?", id).Find(&existingIPs).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check for conflicts"})
+			return
+		}
+
+		// Extract existing IPs and CIDR ranges with their statuses
+		var existingIPAddresses []string
+		var existingCIDRs []string
+		existingStatuses := make(map[string]string)
+
+		for _, existing := range existingIPs {
+			if existing.IsCIDR {
+				existingCIDRs = append(existingCIDRs, existing.Address)
+				existingStatuses[existing.Address] = existing.Status
+			} else {
+				existingIPAddresses = append(existingIPAddresses, existing.Address)
+				existingStatuses[existing.Address] = existing.Status
+			}
+		}
+
+		// Check conflicts based on whether new entry is IP or CIDR
+		var conflicts []utils.ConflictInfo
+		var err error
+
+		if input.IsCIDR {
+			// New entry is a CIDR range - check for conflicts
+			conflicts, err = utils.CheckCIDRConflicts(input.Address, existingIPAddresses, existingCIDRs, existingStatuses, input.Status)
+		} else {
+			// New entry is an IP address - check if it's covered by existing CIDR ranges
+			conflicts, err = utils.CheckIPConflicts(input.Address, existingCIDRs, existingStatuses, input.Status)
+		}
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check conflicts", "details": err.Error()})
+			return
+		}
+
+		// If there are conflicts, return them
+		if len(conflicts) > 0 {
+			// Check if any conflicts are errors (not just warnings)
+			hasErrors := false
+			for _, conflict := range conflicts {
+				if conflict.Severity == "error" {
+					hasErrors = true
+					break
+				}
+			}
+
+			statusCode := http.StatusConflict
+			if !hasErrors {
+				statusCode = http.StatusOK // If only warnings, still allow update
+			}
+
+			// Build detailed error message with conflicting records
+			var conflictDetails []string
+			for _, conflict := range conflicts {
+				conflictDetails = append(conflictDetails, conflict.Message)
+			}
+
+			errorMessage := "IP/CIDR conflicts detected"
+			if len(conflictDetails) > 0 {
+				errorMessage = fmt.Sprintf("IP/CIDR conflicts detected: %s", strings.Join(conflictDetails, "; "))
+			}
+
+			c.JSON(statusCode, gin.H{
+				"error":     errorMessage,
+				"conflicts": conflicts,
+				"message":   "Please review conflicts before proceeding",
 			})
 			return
 		}
@@ -502,7 +660,7 @@ func GetEmails(db *gorm.DB) gin.HandlerFunc {
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
 		search := c.Query("search")
-		orderBy := c.DefaultQuery("orderBy", "ID")
+		orderBy := c.DefaultQuery("orderBy", "id")
 		order := c.DefaultQuery("order", "desc")
 
 		pageNum := 1
@@ -536,12 +694,20 @@ func GetEmails(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Validate orderBy and order
-		if orderBy != "ID" && orderBy != "Address" && orderBy != "Status" {
-			orderBy = "ID"
+		if orderBy != "id" && orderBy != "address" && orderBy != "status" {
+			orderBy = "id"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
+
+		// Map frontend field names to database column names
+		orderByMap := map[string]string{
+			"id":      "ID",
+			"address": "Address",
+			"status":  "Status",
+		}
+		dbOrderBy := orderByMap[orderBy]
 
 		// Use COUNT(*) OVER() for single query optimization
 		query := fmt.Sprintf(`
@@ -550,7 +716,7 @@ func GetEmails(db *gorm.DB) gin.HandlerFunc {
 			%s 
 			ORDER BY %s %s 
 			LIMIT ? OFFSET ?
-		`, whereClause, orderBy, order)
+		`, whereClause, dbOrderBy, order)
 
 		// Add pagination parameters
 		args = append(args, limitNum, (pageNum-1)*limitNum)
@@ -713,7 +879,7 @@ func GetUserAgents(db *gorm.DB) gin.HandlerFunc {
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
 		search := c.Query("search")
-		orderBy := c.DefaultQuery("orderBy", "ID")
+		orderBy := c.DefaultQuery("orderBy", "id")
 		order := c.DefaultQuery("order", "desc")
 
 		pageNum := 1
@@ -747,12 +913,20 @@ func GetUserAgents(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Validate orderBy and order
-		if orderBy != "ID" && orderBy != "UserAgent" && orderBy != "Status" {
-			orderBy = "ID"
+		if orderBy != "id" && orderBy != "user_agent" && orderBy != "status" {
+			orderBy = "id"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
+
+		// Map frontend field names to database column names
+		orderByMap := map[string]string{
+			"id":         "ID",
+			"user_agent": "UserAgent",
+			"status":     "Status",
+		}
+		dbOrderBy := orderByMap[orderBy]
 
 		// Use COUNT(*) OVER() for single query optimization
 		query := fmt.Sprintf(`
@@ -761,7 +935,7 @@ func GetUserAgents(db *gorm.DB) gin.HandlerFunc {
 			%s 
 			ORDER BY %s %s 
 			LIMIT ? OFFSET ?
-		`, whereClause, orderBy, order)
+		`, whereClause, dbOrderBy, order)
 
 		// Add pagination parameters
 		args = append(args, limitNum, (pageNum-1)*limitNum)
@@ -924,7 +1098,7 @@ func GetCountries(db *gorm.DB) gin.HandlerFunc {
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
 		search := c.Query("search")
-		orderBy := c.DefaultQuery("orderBy", "ID")
+		orderBy := c.DefaultQuery("orderBy", "id")
 		order := c.DefaultQuery("order", "desc")
 
 		pageNum := 1
@@ -958,12 +1132,20 @@ func GetCountries(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Validate orderBy and order
-		if orderBy != "ID" && orderBy != "Code" && orderBy != "Status" {
-			orderBy = "ID"
+		if orderBy != "id" && orderBy != "code" && orderBy != "status" {
+			orderBy = "id"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
+
+		// Map frontend field names to database column names
+		orderByMap := map[string]string{
+			"id":     "ID",
+			"code":   "Code",
+			"status": "Status",
+		}
+		dbOrderBy := orderByMap[orderBy]
 
 		// Use COUNT(*) OVER() for single query optimization
 		query := fmt.Sprintf(`
@@ -972,7 +1154,7 @@ func GetCountries(db *gorm.DB) gin.HandlerFunc {
 			%s 
 			ORDER BY %s %s 
 			LIMIT ? OFFSET ?
-		`, whereClause, orderBy, order)
+		`, whereClause, dbOrderBy, order)
 
 		// Add pagination parameters
 		args = append(args, limitNum, (pageNum-1)*limitNum)
@@ -1134,7 +1316,7 @@ func GetCharsetRules(db *gorm.DB) gin.HandlerFunc {
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
 		search := c.Query("search")
-		orderBy := c.DefaultQuery("orderBy", "ID")
+		orderBy := c.DefaultQuery("orderBy", "id")
 		order := c.DefaultQuery("order", "desc")
 
 		pageNum := 1
@@ -1168,12 +1350,20 @@ func GetCharsetRules(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Validate orderBy and order
-		if orderBy != "ID" && orderBy != "Charset" && orderBy != "Status" {
-			orderBy = "ID"
+		if orderBy != "id" && orderBy != "charset" && orderBy != "status" {
+			orderBy = "id"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
+
+		// Map frontend field names to database column names
+		orderByMap := map[string]string{
+			"id":      "ID",
+			"charset": "Charset",
+			"status":  "Status",
+		}
+		dbOrderBy := orderByMap[orderBy]
 
 		// Use COUNT(*) OVER() for single query optimization
 		query := fmt.Sprintf(`
@@ -1182,7 +1372,7 @@ func GetCharsetRules(db *gorm.DB) gin.HandlerFunc {
 			%s 
 			ORDER BY %s %s 
 			LIMIT ? OFFSET ?
-		`, whereClause, orderBy, order)
+		`, whereClause, dbOrderBy, order)
 
 		// Add pagination parameters
 		args = append(args, limitNum, (pageNum-1)*limitNum)
@@ -1370,7 +1560,7 @@ func GetUsernameRules(db *gorm.DB) gin.HandlerFunc {
 		limit := c.DefaultQuery("limit", "10")
 		status := c.Query("status")
 		search := c.Query("search")
-		orderBy := c.DefaultQuery("orderBy", "ID")
+		orderBy := c.DefaultQuery("orderBy", "id")
 		order := c.DefaultQuery("order", "desc")
 
 		pageNum := 1
@@ -1404,12 +1594,20 @@ func GetUsernameRules(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Validate orderBy and order
-		if orderBy != "ID" && orderBy != "Username" && orderBy != "Status" {
-			orderBy = "ID"
+		if orderBy != "id" && orderBy != "username" && orderBy != "status" {
+			orderBy = "id"
 		}
 		if order != "asc" && order != "desc" {
 			order = "desc"
 		}
+
+		// Map frontend field names to database column names
+		orderByMap := map[string]string{
+			"id":       "ID",
+			"username": "Username",
+			"status":   "Status",
+		}
+		dbOrderBy := orderByMap[orderBy]
 
 		// Use COUNT(*) OVER() for single query optimization
 		query := fmt.Sprintf(`
@@ -1418,7 +1616,7 @@ func GetUsernameRules(db *gorm.DB) gin.HandlerFunc {
 			%s 
 			ORDER BY %s %s 
 			LIMIT ? OFFSET ?
-		`, whereClause, orderBy, order)
+		`, whereClause, dbOrderBy, order)
 
 		// Add pagination parameters
 		args = append(args, limitNum, (pageNum-1)*limitNum)
@@ -1767,6 +1965,116 @@ func ManualFullSync(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"message":        "Full sync completed successfully",
 			"records_synced": totalRecords,
+		})
+	}
+}
+
+// CheckIPConflicts checks for conflicts when adding a new IP or CIDR
+// @Summary      Check IP/CIDR conflicts
+// @Description  Checks if a new IP or CIDR would conflict with existing entries
+// @Tags         ip
+// @Accept       json
+// @Produce      json
+// @Param        ip  body      models.IP  true  "IP/CIDR to check"
+// @Success      200 {object}  map[string]interface{}
+// @Failure      400 {object}  map[string]string
+// @Failure      500 {object}  map[string]string
+// @Router       /ip/check-conflicts [post]
+func CheckIPConflicts(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ip models.IP
+
+		if err := c.ShouldBindJSON(&ip); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
+			return
+		}
+
+		// Comprehensive validation
+		ipValidation := validation.ValidateIP(ip.Address)
+		statusValidation := validation.ValidateStatus(ip.Status)
+
+		if !ipValidation.IsValid || !statusValidation.IsValid {
+			errors := []validation.ValidationError{}
+			errors = append(errors, ipValidation.Errors...)
+			errors = append(errors, statusValidation.Errors...)
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": errors,
+			})
+			return
+		}
+
+		// Get all existing IPs and CIDR ranges
+		var existingIPs []models.IP
+		if err := db.Find(&existingIPs).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check for conflicts"})
+			return
+		}
+
+		// Extract existing IPs and CIDR ranges
+		var existingIPAddresses []string
+		var existingCIDRs []string
+		existingStatuses := make(map[string]string)
+
+		for _, existing := range existingIPs {
+			if existing.IsCIDR {
+				existingCIDRs = append(existingCIDRs, existing.Address)
+				existingStatuses[existing.Address] = existing.Status
+			} else {
+				existingIPAddresses = append(existingIPAddresses, existing.Address)
+				existingStatuses[existing.Address] = existing.Status
+			}
+		}
+
+		// Check conflicts based on whether new entry is IP or CIDR
+		var conflicts []utils.ConflictInfo
+		var err error
+
+		if ip.IsCIDR {
+			// New entry is a CIDR range - check for conflicts
+			conflicts, err = utils.CheckCIDRConflicts(ip.Address, existingIPAddresses, existingCIDRs, existingStatuses, ip.Status)
+		} else {
+			// New entry is an IP address - check if it's covered by existing CIDR ranges
+			conflicts, err = utils.CheckIPConflicts(ip.Address, existingCIDRs, existingStatuses, ip.Status)
+		}
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check conflicts", "details": err.Error()})
+			return
+		}
+
+		// Determine overall status
+		hasErrors := false
+		hasWarnings := false
+		for _, conflict := range conflicts {
+			if conflict.Severity == "error" {
+				hasErrors = true
+			} else if conflict.Severity == "warning" {
+				hasWarnings = true
+			}
+		}
+
+		status := "clean"
+		if hasErrors {
+			status = "error"
+		} else if hasWarnings {
+			status = "warning"
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"status":         status,
+			"conflicts":      conflicts,
+			"conflict_count": len(conflicts),
+			"can_proceed":    !hasErrors,
+			"message": func() string {
+				if hasErrors {
+					return "Conflicts detected - cannot proceed"
+				} else if hasWarnings {
+					return "Warnings detected - review before proceeding"
+				}
+				return "No conflicts detected"
+			}(),
 		})
 	}
 }

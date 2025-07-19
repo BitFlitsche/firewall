@@ -138,3 +138,208 @@ func IPToUint32(ip net.IP) uint32 {
 func Uint32ToIP(ipInt uint32) net.IP {
 	return net.IPv4(byte(ipInt>>24), byte(ipInt>>16), byte(ipInt>>8), byte(ipInt))
 }
+
+// ConflictInfo contains information about IP/CIDR conflicts
+type ConflictInfo struct {
+	Type        string   `json:"type"`        // "ip_in_cidr", "cidr_overlaps", "exact_match"
+	Message     string   `json:"message"`     // Human-readable message
+	Conflicting []string `json:"conflicting"` // List of conflicting entries
+	Severity    string   `json:"severity"`    // "warning", "error", "info"
+	Status      string   `json:"status"`      // Status of conflicting entry
+}
+
+// CheckIPConflicts checks if an IP address conflicts with existing CIDR ranges
+func CheckIPConflicts(ip string, existingCIDRs []string, existingStatuses map[string]string, newStatus string) ([]ConflictInfo, error) {
+	var conflicts []ConflictInfo
+
+	// Parse the IP to check
+	ipAddr := net.ParseIP(ip)
+	if ipAddr == nil {
+		return nil, fmt.Errorf("invalid IP address: %s", ip)
+	}
+
+	for _, cidr := range existingCIDRs {
+		// Check if IP is within this CIDR range
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue // Skip invalid CIDR
+		}
+
+		if ipNet.Contains(ipAddr) {
+			cidrStatus := existingStatuses[cidr]
+			severity := "warning"
+
+			// If same status, prevent creation (redundant rule)
+			if cidrStatus == newStatus {
+				severity = "error"
+			}
+
+			conflicts = append(conflicts, ConflictInfo{
+				Type:        "ip_in_cidr",
+				Message:     fmt.Sprintf("IP %s is already covered by CIDR range %s (status: %s)", ip, cidr, cidrStatus),
+				Conflicting: []string{cidr},
+				Severity:    severity,
+				Status:      cidrStatus,
+			})
+		}
+	}
+
+	return conflicts, nil
+}
+
+// CheckCIDRConflicts checks if a CIDR range conflicts with existing IPs or CIDR ranges
+func CheckCIDRConflicts(newCIDR string, existingIPs []string, existingCIDRs []string, existingStatuses map[string]string, newStatus string) ([]ConflictInfo, error) {
+	var conflicts []ConflictInfo
+
+	// Parse the new CIDR
+	_, err := ParseCIDR(newCIDR)
+	if err != nil {
+		return nil, fmt.Errorf("invalid CIDR: %s", err)
+	}
+
+	// Check conflicts with existing individual IPs
+	for _, ip := range existingIPs {
+		ipAddr := net.ParseIP(ip)
+		if ipAddr == nil {
+			continue // Skip invalid IPs
+		}
+
+		// Check if this IP is within the new CIDR range
+		_, ipNet, err := net.ParseCIDR(newCIDR)
+		if err != nil {
+			continue
+		}
+
+		if ipNet.Contains(ipAddr) {
+			ipStatus := existingStatuses[ip]
+			severity := "warning"
+
+			// If same status, prevent creation (redundant rule)
+			if ipStatus == newStatus {
+				severity = "error"
+			}
+
+			conflicts = append(conflicts, ConflictInfo{
+				Type:        "cidr_covers_ip",
+				Message:     fmt.Sprintf("CIDR range %s would cover existing IP %s (status: %s)", newCIDR, ip, ipStatus),
+				Conflicting: []string{ip},
+				Severity:    severity,
+				Status:      ipStatus,
+			})
+		}
+	}
+
+	// Check conflicts with existing CIDR ranges
+	for _, existingCIDR := range existingCIDRs {
+		if existingCIDR == newCIDR {
+			// Exact match
+			cidrStatus := existingStatuses[existingCIDR]
+			conflicts = append(conflicts, ConflictInfo{
+				Type:        "exact_match",
+				Message:     fmt.Sprintf("CIDR range %s already exists (status: %s)", newCIDR, cidrStatus),
+				Conflicting: []string{existingCIDR},
+				Severity:    "error",
+				Status:      cidrStatus,
+			})
+			continue
+		}
+
+		// Check for overlap
+		overlap, err := CheckCIDROverlap(newCIDR, existingCIDR)
+		if err != nil {
+			continue // Skip invalid CIDR
+		}
+
+		if overlap {
+			cidrStatus := existingStatuses[existingCIDR]
+			severity := "error"
+
+			// If same status, prevent creation (redundant rule)
+			if cidrStatus == newStatus {
+				severity = "error"
+			} else {
+				severity = "warning" // Different status, allow with warning
+			}
+
+			conflicts = append(conflicts, ConflictInfo{
+				Type:        "cidr_overlaps",
+				Message:     fmt.Sprintf("CIDR range %s overlaps with existing range %s (status: %s)", newCIDR, existingCIDR, cidrStatus),
+				Conflicting: []string{existingCIDR},
+				Severity:    severity,
+				Status:      cidrStatus,
+			})
+		}
+	}
+
+	return conflicts, nil
+}
+
+// CheckCIDROverlap checks if two CIDR ranges overlap
+func CheckCIDROverlap(cidr1, cidr2 string) (bool, error) {
+	// Parse both CIDR ranges
+	_, ipNet1, err := net.ParseCIDR(cidr1)
+	if err != nil {
+		return false, fmt.Errorf("invalid CIDR 1: %s", err)
+	}
+
+	_, ipNet2, err := net.ParseCIDR(cidr2)
+	if err != nil {
+		return false, fmt.Errorf("invalid CIDR 2: %s", err)
+	}
+
+	// Check if either network contains the other's start IP
+	return ipNet1.Contains(ipNet2.IP) || ipNet2.Contains(ipNet1.IP), nil
+}
+
+// GetConflictingEntries returns all entries that would conflict with a new IP or CIDR
+func GetConflictingEntries(newEntry string, existingEntries []string) ([]string, error) {
+	var conflicts []string
+
+	// Determine if new entry is IP or CIDR
+	if IsSingleIP(newEntry) {
+		// Check if IP conflicts with existing CIDR ranges
+		for _, existing := range existingEntries {
+			if IsCIDRNotation(existing) {
+				_, ipNet, err := net.ParseCIDR(existing)
+				if err != nil {
+					continue
+				}
+
+				ip := net.ParseIP(newEntry)
+				if ip != nil && ipNet.Contains(ip) {
+					conflicts = append(conflicts, existing)
+				}
+			}
+		}
+	} else if IsCIDRNotation(newEntry) {
+		// Check if CIDR conflicts with existing entries
+		for _, existing := range existingEntries {
+			if existing == newEntry {
+				// Exact match
+				conflicts = append(conflicts, existing)
+				continue
+			}
+
+			if IsCIDRNotation(existing) {
+				// Check CIDR overlap
+				overlap, err := CheckCIDROverlap(newEntry, existing)
+				if err == nil && overlap {
+					conflicts = append(conflicts, existing)
+				}
+			} else {
+				// Check if existing IP is within new CIDR
+				_, ipNet, err := net.ParseCIDR(newEntry)
+				if err != nil {
+					continue
+				}
+
+				ip := net.ParseIP(existing)
+				if ip != nil && ipNet.Contains(ip) {
+					conflicts = append(conflicts, existing)
+				}
+			}
+		}
+	}
+
+	return conflicts, nil
+}

@@ -203,27 +203,27 @@ const UsernameTable = React.memo(({
                             <TableRow>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'ID'}
-                                        direction={orderBy === 'ID' ? order : 'asc'}
-                                        onClick={() => onSort('ID')}
+                                        active={orderBy === 'id'}
+                                        direction={orderBy === 'id' ? order : 'asc'}
+                                        onClick={() => onSort('id')}
                                     >
                                         ID
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Username'}
-                                        direction={orderBy === 'Username' ? order : 'asc'}
-                                        onClick={() => onSort('Username')}
+                                        active={orderBy === 'username'}
+                                        direction={orderBy === 'username' ? order : 'asc'}
+                                        onClick={() => onSort('username')}
                                     >
                                         Username
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Status'}
-                                        direction={orderBy === 'Status' ? order : 'asc'}
-                                        onClick={() => onSort('Status')}
+                                        active={orderBy === 'status'}
+                                        direction={orderBy === 'status' ? order : 'asc'}
+                                        onClick={() => onSort('status')}
                                     >
                                         Status
                                     </TableSortLabel>
@@ -239,16 +239,16 @@ const UsernameTable = React.memo(({
                                 </TableRow>
                             ) : (
                                 usernames.map(usernameItem => (
-                                    <TableRow key={usernameItem.ID}>
-                                        <TableCell>{usernameItem.ID}</TableCell>
-                                        <TableCell>{usernameItem.Username}</TableCell>
-                                        <TableCell>{usernameItem.Status}</TableCell>
-                                        <TableCell>{usernameItem.IsRegex ? 'Yes' : 'No'}</TableCell>
+                                    <TableRow key={usernameItem.id}>
+                                        <TableCell>{usernameItem.id}</TableCell>
+                                        <TableCell>{usernameItem.username}</TableCell>
+                                        <TableCell>{usernameItem.status}</TableCell>
+                                        <TableCell>{usernameItem.is_regex ? 'Yes' : 'No'}</TableCell>
                                         <TableCell>
                                             <IconButton onClick={() => onEdit(usernameItem)} color="primary">
                                                 <EditIcon />
                                             </IconButton>
-                                            <IconButton onClick={() => onDelete(usernameItem.ID)} color="error">
+                                            <IconButton onClick={() => onDelete(usernameItem.id)} color="error">
                                                 <DeleteIcon />
                                             </IconButton>
                                         </TableCell>
@@ -286,7 +286,7 @@ const UsernameForm = () => {
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
-    const [orderBy, setOrderBy] = useState('ID');
+    const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -407,10 +407,9 @@ const UsernameForm = () => {
     }, []);
 
     const handleEdit = useCallback((usernameItem) => {
-        setUsername(usernameItem.Username);
-        setStatus(usernameItem.Status);
-        setIsRegex(usernameItem.IsRegex || false);
-        setEditId(usernameItem.ID);
+        setUsername(usernameItem.username);
+        setStatus(usernameItem.status);
+        setEditId(usernameItem.id);
     }, []);
 
     const handleSort = useCallback((field) => {

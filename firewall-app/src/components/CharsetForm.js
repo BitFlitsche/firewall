@@ -162,27 +162,27 @@ const CharsetTable = memo(({
                             <TableRow>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'ID'}
-                                        direction={orderBy === 'ID' ? order : 'asc'}
-                                        onClick={() => onSort('ID')}
+                                        active={orderBy === 'id'}
+                                        direction={orderBy === 'id' ? order : 'asc'}
+                                        onClick={() => onSort('id')}
                                     >
                                         ID
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Charset'}
-                                        direction={orderBy === 'Charset' ? order : 'asc'}
-                                        onClick={() => onSort('Charset')}
+                                        active={orderBy === 'charset'}
+                                        direction={orderBy === 'charset' ? order : 'asc'}
+                                        onClick={() => onSort('charset')}
                                     >
                                         Charset
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Status'}
-                                        direction={orderBy === 'Status' ? order : 'asc'}
-                                        onClick={() => onSort('Status')}
+                                        active={orderBy === 'status'}
+                                        direction={orderBy === 'status' ? order : 'asc'}
+                                        onClick={() => onSort('status')}
                                     >
                                         Status
                                     </TableSortLabel>
@@ -197,13 +197,13 @@ const CharsetTable = memo(({
                                 </TableRow>
                             ) : (
                                 charsets.map(charsetItem => (
-                                    <TableRow key={charsetItem.ID}>
-                                        <TableCell>{charsetItem.ID}</TableCell>
-                                        <TableCell>{charsetItem.Charset}</TableCell>
-                                        <TableCell>{charsetItem.Status}</TableCell>
+                                    <TableRow key={charsetItem.id}>
+                                        <TableCell>{charsetItem.id}</TableCell>
+                                        <TableCell>{charsetItem.charset}</TableCell>
+                                        <TableCell>{charsetItem.status}</TableCell>
                                         <TableCell>
                                             <IconButton onClick={() => onEdit(charsetItem)} size="small"><EditIcon /></IconButton>
-                                            <IconButton onClick={() => onDelete(charsetItem.ID)} size="small" color="error"><DeleteIcon /></IconButton>
+                                            <IconButton onClick={() => onDelete(charsetItem.id)} size="small" color="error"><DeleteIcon /></IconButton>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -238,7 +238,7 @@ const CharsetForm = () => {
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
-    const [orderBy, setOrderBy] = useState('ID');
+    const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -373,9 +373,9 @@ const CharsetForm = () => {
     }, []);
 
     const handleEdit = useCallback((charsetItem) => {
-        setCharset(charsetItem.Charset);
-        setStatus(charsetItem.Status);
-        setEditId(charsetItem.ID);
+        setCharset(charsetItem.charset);
+        setStatus(charsetItem.status);
+        setEditId(charsetItem.id);
     }, []);
 
     const handleDelete = useCallback(async (id) => {

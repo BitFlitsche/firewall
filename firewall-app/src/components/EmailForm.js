@@ -205,27 +205,27 @@ const EmailTable = memo(({
                             <TableRow>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'ID'}
-                                        direction={orderBy === 'ID' ? order : 'asc'}
-                                        onClick={() => onSort('ID')}
+                                        active={orderBy === 'id'}
+                                        direction={orderBy === 'id' ? order : 'asc'}
+                                        onClick={() => onSort('id')}
                                     >
                                         ID
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Address'}
-                                        direction={orderBy === 'Address' ? order : 'asc'}
-                                        onClick={() => onSort('Address')}
+                                        active={orderBy === 'address'}
+                                        direction={orderBy === 'address' ? order : 'asc'}
+                                        onClick={() => onSort('address')}
                                     >
                                         Email Address
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Status'}
-                                        direction={orderBy === 'Status' ? order : 'asc'}
-                                        onClick={() => onSort('Status')}
+                                        active={orderBy === 'status'}
+                                        direction={orderBy === 'status' ? order : 'asc'}
+                                        onClick={() => onSort('status')}
                                     >
                                         Status
                                     </TableSortLabel>
@@ -241,16 +241,16 @@ const EmailTable = memo(({
                                 </TableRow>
                             ) : (
                                 emails.map(emailItem => (
-                                    <TableRow key={emailItem.ID}>
-                                        <TableCell>{emailItem.ID}</TableCell>
-                                        <TableCell>{emailItem.Address}</TableCell>
-                                        <TableCell>{emailItem.Status}</TableCell>
-                                        <TableCell>{emailItem.IsRegex ? 'Yes' : 'No'}</TableCell>
+                                    <TableRow key={emailItem.id}>
+                                        <TableCell>{emailItem.id}</TableCell>
+                                        <TableCell>{emailItem.address}</TableCell>
+                                        <TableCell>{emailItem.status}</TableCell>
+                                        <TableCell>{emailItem.is_regex ? 'Yes' : 'No'}</TableCell>
                                         <TableCell>
                                             <IconButton onClick={() => onEdit(emailItem)} color="primary">
                                                 <EditIcon />
                                             </IconButton>
-                                            <IconButton onClick={() => onDelete(emailItem.ID)} color="error">
+                                            <IconButton onClick={() => onDelete(emailItem.id)} color="error">
                                                 <DeleteIcon />
                                             </IconButton>
                                         </TableCell>
@@ -288,7 +288,7 @@ const EmailForm = () => {
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
-    const [orderBy, setOrderBy] = useState('ID');
+    const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -424,10 +424,9 @@ const EmailForm = () => {
     }, []);
 
     const handleEdit = useCallback((emailItem) => {
-        setEmail(emailItem.Address);
-        setStatus(emailItem.Status);
-        setIsRegex(emailItem.IsRegex || false);
-        setEditId(emailItem.ID);
+        setEmail(emailItem.address);
+        setStatus(emailItem.status);
+        setEditId(emailItem.id);
     }, []);
 
     const handleDelete = useCallback(async (id) => {

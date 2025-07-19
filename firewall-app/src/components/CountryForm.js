@@ -161,27 +161,27 @@ const CountryTable = React.memo(({
                             <TableRow>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'ID'}
-                                        direction={orderBy === 'ID' ? order : 'asc'}
-                                        onClick={() => onSort('ID')}
+                                        active={orderBy === 'id'}
+                                        direction={orderBy === 'id' ? order : 'asc'}
+                                        onClick={() => onSort('id')}
                                     >
                                         ID
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Code'}
-                                        direction={orderBy === 'Code' ? order : 'asc'}
-                                        onClick={() => onSort('Code')}
+                                        active={orderBy === 'code'}
+                                        direction={orderBy === 'code' ? order : 'asc'}
+                                        onClick={() => onSort('code')}
                                     >
                                         Country Code
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Status'}
-                                        direction={orderBy === 'Status' ? order : 'asc'}
-                                        onClick={() => onSort('Status')}
+                                        active={orderBy === 'status'}
+                                        direction={orderBy === 'status' ? order : 'asc'}
+                                        onClick={() => onSort('status')}
                                     >
                                         Status
                                     </TableSortLabel>
@@ -196,15 +196,15 @@ const CountryTable = React.memo(({
                                 </TableRow>
                             ) : (
                                 countries.map((countryItem) => (
-                                    <TableRow key={countryItem.ID}>
-                                        <TableCell>{countryItem.ID}</TableCell>
-                                        <TableCell>{countryItem.Code}</TableCell>
-                                        <TableCell>{countryItem.Status}</TableCell>
+                                    <TableRow key={countryItem.id}>
+                                        <TableCell>{countryItem.id}</TableCell>
+                                        <TableCell>{countryItem.code}</TableCell>
+                                        <TableCell>{countryItem.status}</TableCell>
                                         <TableCell>
                                             <IconButton onClick={() => onEdit(countryItem)} size="small">
                                                 <EditIcon />
                                             </IconButton>
-                                            <IconButton onClick={() => onDelete(countryItem.ID)} size="small" color="error">
+                                            <IconButton onClick={() => onDelete(countryItem.id)} size="small" color="error">
                                                 <DeleteIcon />
                                             </IconButton>
                                         </TableCell>
@@ -241,7 +241,7 @@ const CountryForm = () => {
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
-    const [orderBy, setOrderBy] = useState('ID');
+    const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -361,9 +361,9 @@ const CountryForm = () => {
     }, []);
 
     const handleEdit = useCallback((countryItem) => {
-        setCountry(countryItem.Code);
-        setStatus(countryItem.Status);
-        setEditId(countryItem.ID);
+        setCountry(countryItem.country);
+        setStatus(countryItem.status);
+        setEditId(countryItem.id);
     }, []);
 
     const handleSort = useCallback((field) => {

@@ -130,6 +130,23 @@ All endpoints include comprehensive input validation:
 
 For detailed validation documentation, see [docs/VALIDATION.md](docs/VALIDATION.md).
 
+### IP/CIDR Conflict Detection
+
+The system automatically detects conflicts when adding IP addresses or CIDR ranges:
+
+- **IP in CIDR**: Detects when adding an IP already covered by a CIDR range
+- **CIDR Overlap**: Detects when adding a CIDR that overlaps with existing ranges
+- **CIDR Covers IPs**: Warns when a CIDR would cover existing individual IPs
+- **Exact Matches**: Detects duplicate IPs or CIDR ranges
+- **Pre-creation Checks**: Check for conflicts without creating entries
+
+**Endpoints:**
+- `POST /api/ip` - Create with automatic conflict detection
+- `POST /api/ip/check-conflicts` - Check conflicts before creating
+- `PUT /api/ip/:id` - Update with conflict detection
+
+For detailed conflict detection documentation, see [docs/CONFLICT_DETECTION.md](docs/CONFLICT_DETECTION.md).
+
 ## Development
 
 ### Backend Development

@@ -36,6 +36,7 @@ func SetupRoutes(r *gin.Engine) {
 	api.DELETE("/ip/:id", controllers.DeleteIPAddress(db))
 	api.GET("/ips/stats", controllers.GetIPStats(db))
 	api.POST("/ip/recreate-index", controllers.RecreateIPIndex(db))
+	api.POST("/ip/check-conflicts", controllers.CheckIPConflicts(db))
 
 	// CRUD routes for Emails
 	api.POST("/email", controllers.CreateEmail(db))

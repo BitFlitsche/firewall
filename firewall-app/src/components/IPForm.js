@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axiosInstance from '../axiosConfig';
+import ConflictTable from './ConflictTable';
 // MUI imports
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -210,27 +211,27 @@ const IPTable = React.memo(({
                             <TableRow>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'ID'}
-                                        direction={orderBy === 'ID' ? order : 'asc'}
-                                        onClick={() => onSort('ID')}
+                                        active={orderBy === 'id'}
+                                        direction={orderBy === 'id' ? order : 'asc'}
+                                        onClick={() => onSort('id')}
                                     >
                                         ID
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Address'}
-                                        direction={orderBy === 'Address' ? order : 'asc'}
-                                        onClick={() => onSort('Address')}
+                                        active={orderBy === 'address'}
+                                        direction={orderBy === 'address' ? order : 'asc'}
+                                        onClick={() => onSort('address')}
                                     >
                                         IP Address / CIDR
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Status'}
-                                        direction={orderBy === 'Status' ? order : 'asc'}
-                                        onClick={() => onSort('Status')}
+                                        active={orderBy === 'status'}
+                                        direction={orderBy === 'status' ? order : 'asc'}
+                                        onClick={() => onSort('status')}
                                     >
                                         Status
                                     </TableSortLabel>
@@ -246,16 +247,16 @@ const IPTable = React.memo(({
                                 </TableRow>
                             ) : (
                                 ips.map((ipItem) => (
-                                    <TableRow key={ipItem.ID}>
-                                        <TableCell>{ipItem.ID}</TableCell>
-                                        <TableCell>{ipItem.Address}</TableCell>
-                                        <TableCell>{ipItem.Status}</TableCell>
-                                        <TableCell>{ipItem.IsCIDR ? 'CIDR Block' : 'Single IP'}</TableCell>
+                                    <TableRow key={ipItem.id}>
+                                        <TableCell>{ipItem.id}</TableCell>
+                                        <TableCell>{ipItem.address}</TableCell>
+                                        <TableCell>{ipItem.status}</TableCell>
+                                        <TableCell>{ipItem.is_cidr ? 'CIDR Block' : 'Single IP'}</TableCell>
                                         <TableCell>
                                             <IconButton onClick={() => onEdit(ipItem)} size="small">
                                                 <EditIcon />
                                             </IconButton>
-                                            <IconButton onClick={() => onDelete(ipItem.ID)} size="small" color="error">
+                                            <IconButton onClick={() => onDelete(ipItem.id)} size="small" color="error">
                                                 <DeleteIcon />
                                             </IconButton>
                                         </TableCell>
@@ -286,6 +287,9 @@ const IPForm = () => {
     const [isCidr, setIsCidr] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [conflicts, setConflicts] = useState([]);
+    const [isDeletingConflicts, setIsDeletingConflicts] = useState(false);
+    const [pendingOperation, setPendingOperation] = useState(null);
     const [refresh, setRefresh] = useState(false);
     const [ips, setIps] = useState([]);
     const [editId, setEditId] = useState(null);
@@ -294,7 +298,7 @@ const IPForm = () => {
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
     const [filterType, setFilterType] = useState('');
-    const [orderBy, setOrderBy] = useState('ID');
+    const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -395,19 +399,29 @@ const IPForm = () => {
         e.preventDefault();
         setMessage('');
         setError('');
+        setConflicts([]);
+        setPendingOperation(null);
+        
+        const operation = {
+            address: ip,
+            status: status,
+            is_cidr: isCidr,
+            editId: editId
+        };
+        
         try {
             if (editId) {
                 await axiosInstance.put(`/api/ip/${editId}`, {
-                    Address: ip,
-                    Status: status,
-                    IsCIDR: isCidr
+                    address: ip,
+                    status: status,
+                    is_cidr: isCidr
                 });
                 setMessage('IP address updated successfully');
             } else {
                 await axiosInstance.post('/api/ip', {
-                    Address: ip,
-                    Status: status,
-                    IsCIDR: isCidr
+                    address: ip,
+                    status: status,
+                    is_cidr: isCidr
                 });
                 setMessage('IP address added successfully');
             }
@@ -417,9 +431,103 @@ const IPForm = () => {
             setEditId(null);
             setRefresh(r => !r);
         } catch (error) {
-            setError(error.response?.data?.error || 'Error saving IP address');
+            if (error.response?.status === 409 && error.response?.data?.conflicts) {
+                // Handle conflict response
+                setConflicts(error.response.data.conflicts);
+                setPendingOperation(operation);
+                const hasErrors = error.response.data.conflicts.some(c => c.severity === 'error');
+                if (hasErrors) {
+                    setError('IP address creation blocked due to conflicts');
+                } else {
+                    setMessage('IP address added with warnings');
+                    setIp('');
+                    setStatus('denied');
+                    setIsCidr(false);
+                    setEditId(null);
+                    setRefresh(r => !r);
+                }
+            } else {
+                setError(error.response?.data?.error || 'Error saving IP address');
+            }
         }
     }, [ip, status, isCidr, editId]);
+
+    const handleDeleteAllConflicts = useCallback(async () => {
+        if (!pendingOperation || conflicts.length === 0) return;
+        
+        setIsDeletingConflicts(true);
+        setError('');
+        
+        try {
+            // Extract unique conflicting addresses from ERROR conflicts only
+            const errorConflicts = conflicts.filter(c => c.severity === 'error');
+            const conflictingAddresses = [...new Set(errorConflicts.map(c => c.conflicting[0]))];
+            
+            if (conflictingAddresses.length === 0) {
+                setError('No error-level conflicts to delete');
+                return;
+            }
+            
+            // First, fetch all IPs to get their IDs
+            const response = await axiosInstance.get('/api/ips', {
+                params: {
+                    limit: 1000, // Get all IPs to find the conflicting ones
+                    page: 1
+                }
+            });
+            
+            const allIPs = response.data.items || [];
+            
+            // Find IDs of conflicting addresses
+            const conflictingIds = [];
+            for (const address of conflictingAddresses) {
+                const foundIP = allIPs.find(ip => ip.address === address);
+                if (foundIP) {
+                    conflictingIds.push(foundIP.id);
+                }
+            }
+            
+            // Delete all conflicting entries by ID
+            const deletePromises = conflictingIds.map(id => 
+                axiosInstance.delete(`/api/ip/${id}`)
+            );
+            
+            await Promise.all(deletePromises);
+            
+            // Retry the original operation
+            const { address, status: opStatus, is_cidr, editId: opEditId } = pendingOperation;
+            
+            if (opEditId) {
+                await axiosInstance.put(`/api/ip/${opEditId}`, {
+                    address,
+                    status: opStatus,
+                    is_cidr
+                });
+                setMessage(`IP address updated successfully after removing ${conflictingIds.length} error conflicts`);
+            } else {
+                await axiosInstance.post('/api/ip', {
+                    address,
+                    status: opStatus,
+                    is_cidr
+                });
+                setMessage(`IP address added successfully after removing ${conflictingIds.length} error conflicts`);
+            }
+            
+            // Clear form and refresh
+            setIp('');
+            setStatus('denied');
+            setIsCidr(false);
+            setEditId(null);
+            setConflicts([]);
+            setPendingOperation(null);
+            setRefresh(r => !r);
+            
+        } catch (error) {
+            setError('Failed to delete conflicts or retry operation: ' + (error.response?.data?.error || error.message));
+        } finally {
+            setIsDeletingConflicts(false);
+        }
+    }, [conflicts, pendingOperation]);
 
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this IP address?')) return;
@@ -433,10 +541,10 @@ const IPForm = () => {
     }, []);
 
     const handleEdit = useCallback((ipItem) => {
-        setIp(ipItem.Address);
-        setStatus(ipItem.Status);
-        setIsCidr(ipItem.IsCIDR || false);
-        setEditId(ipItem.ID);
+        setIp(ipItem.address);
+        setStatus(ipItem.status);
+        setIsCidr(ipItem.is_cidr || false);
+        setEditId(ipItem.id);
     }, []);
 
     const handleSort = useCallback((field) => {
@@ -558,6 +666,12 @@ const IPForm = () => {
                 <IPFormComponent {...formProps} />
                 {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                <ConflictTable 
+                    conflicts={conflicts} 
+                    open={conflicts.length > 0} 
+                    onDeleteAllConflicts={handleDeleteAllConflicts}
+                    isDeleting={isDeletingConflicts}
+                />
                 
                 {/* Filter controls outside of table component */}
                 <Box sx={{ mt: 4, mb: 2 }}>

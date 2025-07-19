@@ -26,10 +26,10 @@ const statusOptions = [
 ];
 
 const getValueField = (endpoint) => {
-  if (endpoint === '/ips') return 'Address';
-  if (endpoint === '/emails') return 'Address';
-  if (endpoint === '/user-agents') return 'UserAgent';
-  if (endpoint === '/countries') return 'Code';
+  if (endpoint === '/ips') return 'address';
+  if (endpoint === '/emails') return 'address';
+  if (endpoint === '/user-agents') return 'user_agent';
+  if (endpoint === '/countries') return 'code';
   return '';
 };
 
@@ -55,7 +55,7 @@ const ListView = ({ endpoint, title, refresh }) => {
   const [error, setError] = useState(null);
   const [filterValue, setFilterValue] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [orderBy, setOrderBy] = useState('ID');
+  const [orderBy, setOrderBy] = useState('id');
   const [order, setOrder] = useState('desc');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -106,6 +106,7 @@ const ListView = ({ endpoint, title, refresh }) => {
             order,
           }
         });
+        
         if (response.data && Array.isArray(response.data)) {
           setItems(response.data);
           setTotal(response.data.length);
@@ -141,7 +142,7 @@ const ListView = ({ endpoint, title, refresh }) => {
 
   // Status-Counts berechnen
   const statusCounts = items.reduce((acc, item) => {
-    const status = (item.Status || '').toLowerCase();
+    const status = (item.status || '').toLowerCase();
     if (!acc[status]) acc[status] = 0;
     acc[status]++;
     return acc;
@@ -227,9 +228,9 @@ const ListView = ({ endpoint, title, refresh }) => {
             <TableRow>
               <TableCell>
                 <TableSortLabel
-                  active={orderBy === 'ID'}
-                  direction={orderBy === 'ID' ? order : 'asc'}
-                  onClick={() => handleSort('ID')}
+                  active={orderBy === 'id'}
+                  direction={orderBy === 'id' ? order : 'asc'}
+                  onClick={() => handleSort('id')}
                 >
                   ID
                 </TableSortLabel>
@@ -245,9 +246,9 @@ const ListView = ({ endpoint, title, refresh }) => {
               </TableCell>
               <TableCell>
                 <TableSortLabel
-                  active={orderBy === 'Status'}
-                  direction={orderBy === 'Status' ? order : 'asc'}
-                  onClick={() => handleSort('Status')}
+                  active={orderBy === 'status'}
+                  direction={orderBy === 'status' ? order : 'asc'}
+                  onClick={() => handleSort('status')}
                 >
                   Status
                 </TableSortLabel>
@@ -260,13 +261,15 @@ const ListView = ({ endpoint, title, refresh }) => {
                 <TableCell colSpan={3} align="center">No items found</TableCell>
               </TableRow>
             ) : (
-              paginatedItems.map((item, idx) => (
-                <TableRow key={item.ID || item.Address || item.UserAgent || item.Code || idx}>
-                  <TableCell>{item.ID}</TableCell>
-                  <TableCell>{item[valueField]}</TableCell>
-                  <TableCell>{item.Status}</TableCell>
-                </TableRow>
-              ))
+              paginatedItems.map((item, idx) => {
+                return (
+                  <TableRow key={item.id || item.address || item.user_agent || item.code || idx}>
+                    <TableCell>{item.id}</TableCell>
+                    <TableCell>{item[valueField]}</TableCell>
+                    <TableCell>{item.status}</TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

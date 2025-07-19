@@ -209,27 +209,27 @@ const UserAgentTable = memo(({
                             <TableRow>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'ID'}
-                                        direction={orderBy === 'ID' ? order : 'asc'}
-                                        onClick={() => onSort('ID')}
+                                        active={orderBy === 'id'}
+                                        direction={orderBy === 'id' ? order : 'asc'}
+                                        onClick={() => onSort('id')}
                                     >
                                         ID
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'UserAgent'}
-                                        direction={orderBy === 'UserAgent' ? order : 'asc'}
-                                        onClick={() => onSort('UserAgent')}
+                                        active={orderBy === 'user_agent'}
+                                        direction={orderBy === 'user_agent' ? order : 'asc'}
+                                        onClick={() => onSort('user_agent')}
                                     >
                                         User Agent
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        active={orderBy === 'Status'}
-                                        direction={orderBy === 'Status' ? order : 'asc'}
-                                        onClick={() => onSort('Status')}
+                                        active={orderBy === 'status'}
+                                        direction={orderBy === 'status' ? order : 'asc'}
+                                        onClick={() => onSort('status')}
                                     >
                                         Status
                                     </TableSortLabel>
@@ -245,14 +245,14 @@ const UserAgentTable = memo(({
                                 </TableRow>
                             ) : (
                                 userAgents.map(userAgentItem => (
-                                    <TableRow key={userAgentItem.ID}>
-                                        <TableCell>{userAgentItem.ID}</TableCell>
-                                        <TableCell>{userAgentItem.UserAgent}</TableCell>
-                                        <TableCell>{userAgentItem.Status}</TableCell>
-                                        <TableCell>{userAgentItem.IsRegex ? 'Yes' : 'No'}</TableCell>
+                                    <TableRow key={userAgentItem.id}>
+                                        <TableCell>{userAgentItem.id}</TableCell>
+                                        <TableCell>{userAgentItem.user_agent}</TableCell>
+                                        <TableCell>{userAgentItem.status}</TableCell>
+                                        <TableCell>{userAgentItem.is_regex ? 'Yes' : 'No'}</TableCell>
                                         <TableCell>
                                             <IconButton onClick={() => onEdit(userAgentItem)} size="small"><EditIcon /></IconButton>
-                                            <IconButton onClick={() => onDelete(userAgentItem.ID)} size="small" color="error"><DeleteIcon /></IconButton>
+                                            <IconButton onClick={() => onDelete(userAgentItem.id)} size="small" color="error"><DeleteIcon /></IconButton>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -288,7 +288,7 @@ const UserAgentForm = () => {
     // Filtering and pagination state
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
-    const [orderBy, setOrderBy] = useState('ID');
+    const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -428,10 +428,9 @@ const UserAgentForm = () => {
     }, []);
 
     const handleEdit = useCallback((userAgentItem) => {
-        setUserAgent(userAgentItem.UserAgent);
-        setStatus(userAgentItem.Status);
-        setIsRegex(userAgentItem.IsRegex || false); // Set regex checkbox
-        setEditId(userAgentItem.ID);
+        setUserAgent(userAgentItem.user_agent);
+        setStatus(userAgentItem.status);
+        setEditId(userAgentItem.id);
     }, []);
 
     const handleDelete = useCallback(async (id) => {
