@@ -13,6 +13,7 @@ A comprehensive firewall management system with Go backend and React frontend.
 - **Database connection pooling** with monitoring
 - **Rate limiting** and security features
 - **Comprehensive logging** and metrics
+- **Input validation system** with field-level validation and security checks
 
 ## Quick Start
 
@@ -113,6 +114,21 @@ export FIREWALL_LOCKING_FULL_SYNC_TTL=30m
 - `GET /api/v1/charsets` - List charsets
 - `GET /api/v1/usernames` - List usernames
 - `GET /sync/status` - Check sync status and distributed locking
+
+### Input Validation
+
+All endpoints include comprehensive input validation:
+
+- **IP Addresses**: Valid IPv4, IPv6, and CIDR notation
+- **Email Addresses**: RFC 5321 compliant format
+- **User Agents**: Length and character validation
+- **Country Codes**: ISO 3166-1 alpha-2 format
+- **Status Values**: `allowed`, `denied`, `whitelisted`
+- **Regex Patterns**: Valid Go regex compilation
+- **Pagination**: Page and limit validation
+- **Search Parameters**: SQL injection prevention
+
+For detailed validation documentation, see [docs/VALIDATION.md](docs/VALIDATION.md).
 
 ## Development
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"firewall/services"
+	"firewall/validation"
 	"net/http"
 	"strings"
 	"time"
@@ -17,12 +18,12 @@ import (
 
 // FilterRequest defines the structure for the incoming JSON request
 type FilterRequest struct {
-	IP        string `json:"ip"`
-	Email     string `json:"email"`
-	UserAgent string `json:"user_agent"`
-	Country   string `json:"country"`
-	Content   string `json:"content"`  // optional
-	Username  string `json:"username"` // optional
+	IP        string `json:"ip" binding:"omitempty,max=45"`
+	Email     string `json:"email" binding:"omitempty,email,max=254"`
+	UserAgent string `json:"user_agent" binding:"omitempty,max=500"`
+	Country   string `json:"country" binding:"omitempty,len=2,alpha"`
+	Content   string `json:"content" binding:"omitempty,max=10000"` // optional
+	Username  string `json:"username" binding:"omitempty,max=100"`  // optional
 }
 
 // normalizeEmail removes dots from the local part of Gmail addresses
@@ -266,7 +267,17 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 
 		var input FilterRequest
 		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
+			return
+		}
+
+		// Comprehensive validation using our validation package
+		validationResult := validation.ValidateFilterRequest(input.IP, input.Email, input.UserAgent, input.Country, input.Username, input.Content)
+		if !validationResult.IsValid {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": validationResult.Errors,
+			})
 			return
 		}
 

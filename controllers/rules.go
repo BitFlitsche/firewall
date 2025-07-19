@@ -4,6 +4,7 @@ package controllers
 import (
 	"firewall/models"
 	"firewall/services"
+	"firewall/validation"
 	"fmt"
 	"log"
 	"net/http"
@@ -124,7 +125,30 @@ func CreateIPAddress(db *gorm.DB) gin.HandlerFunc {
 		var ip models.IP
 
 		if err := c.ShouldBindJSON(&ip); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
+			return
+		}
+
+		// Comprehensive validation
+		ipValidation := validation.ValidateIP(ip.Address)
+		statusValidation := validation.ValidateStatus(ip.Status)
+
+		if !ipValidation.IsValid || !statusValidation.IsValid {
+			errors := []validation.ValidationError{}
+			errors = append(errors, ipValidation.Errors...)
+			errors = append(errors, statusValidation.Errors...)
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": errors,
+			})
+			return
+		}
+
+		// Check if IP already exists
+		var existingIP models.IP
+		if err := db.Where("address = ?", ip.Address).First(&existingIP).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "IP address already exists", "address": ip.Address})
 			return
 		}
 
@@ -164,6 +188,51 @@ func GetIPAddresses(db *gorm.DB) gin.HandlerFunc {
 		search := c.Query("search")
 		orderBy := c.DefaultQuery("orderBy", "ID")
 		order := c.DefaultQuery("order", "desc")
+
+		// Validate query parameters
+		paginationValidation := validation.ValidatePagination(page, limit)
+		if !paginationValidation.IsValid {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Invalid pagination parameters",
+				"details": paginationValidation.Errors,
+			})
+			return
+		}
+
+		// Validate status if provided
+		if status != "" {
+			statusValidation := validation.ValidateStatus(status)
+			if !statusValidation.IsValid {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":   "Invalid status parameter",
+					"details": statusValidation.Errors,
+				})
+				return
+			}
+		}
+
+		// Validate search if provided
+		if search != "" {
+			searchValidation := validation.ValidateSearch(search)
+			if !searchValidation.IsValid {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":   "Invalid search parameter",
+					"details": searchValidation.Errors,
+				})
+				return
+			}
+		}
+
+		// Validate orderBy and order
+		validFields := []string{"ID", "Address", "Status"}
+		orderValidation := validation.ValidateOrderBy(orderBy, order, validFields)
+		if !orderValidation.IsValid {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Invalid ordering parameters",
+				"details": orderValidation.Errors,
+			})
+			return
+		}
 
 		// Umwandlung
 		pageNum := 1
@@ -286,24 +355,61 @@ func GetIPStats(db *gorm.DB) gin.HandlerFunc {
 // UpdateIPAddress aktualisiert eine IP-Adresse
 func UpdateIPAddress(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Validate ID parameter
+		idValidation := validation.ValidateID(c.Param("id"))
+		if !idValidation.IsValid {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Invalid ID parameter",
+				"details": idValidation.Errors,
+			})
+			return
+		}
+
 		var ip models.IP
 		id := c.Param("id")
 		if err := db.First(&ip, id).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "IP address not found"})
 			return
 		}
+
 		var input models.IP
 		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
 			return
 		}
+
+		// Comprehensive validation
+		ipValidation := validation.ValidateIP(input.Address)
+		statusValidation := validation.ValidateStatus(input.Status)
+
+		if !ipValidation.IsValid || !statusValidation.IsValid {
+			errors := []validation.ValidationError{}
+			errors = append(errors, ipValidation.Errors...)
+			errors = append(errors, statusValidation.Errors...)
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": errors,
+			})
+			return
+		}
+
+		// Check if the new address conflicts with existing records (excluding current record)
+		var existingIP models.IP
+		if err := db.Where("address = ? AND id != ?", input.Address, id).First(&existingIP).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "IP address already exists", "address": input.Address})
+			return
+		}
+
 		ip.Address = input.Address
 		ip.Status = input.Status
 		ip.IsCIDR = input.IsCIDR
+
 		if err := db.Save(&ip).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update IP address"})
 			return
 		}
+
 		services.PublishEvent("ip", "updated", ip)
 		c.JSON(http.StatusOK, ip)
 	}
@@ -337,7 +443,30 @@ func CreateEmail(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var email models.Email
 		if err := c.ShouldBindJSON(&email); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
+			return
+		}
+
+		// Comprehensive validation
+		emailValidation := validation.ValidateEmail(email.Address)
+		statusValidation := validation.ValidateStatus(email.Status)
+
+		if !emailValidation.IsValid || !statusValidation.IsValid {
+			errors := []validation.ValidationError{}
+			errors = append(errors, emailValidation.Errors...)
+			errors = append(errors, statusValidation.Errors...)
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": errors,
+			})
+			return
+		}
+
+		// Check if email already exists
+		var existingEmail models.Email
+		if err := db.Where("address = ?", email.Address).First(&existingEmail).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Email address already exists", "address": email.Address})
 			return
 		}
 
@@ -525,7 +654,30 @@ func CreateUserAgent(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var userAgent models.UserAgent
 		if err := c.ShouldBindJSON(&userAgent); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
+			return
+		}
+
+		// Comprehensive validation
+		userAgentValidation := validation.ValidateUserAgent(userAgent.UserAgent)
+		statusValidation := validation.ValidateStatus(userAgent.Status)
+
+		if !userAgentValidation.IsValid || !statusValidation.IsValid {
+			errors := []validation.ValidationError{}
+			errors = append(errors, userAgentValidation.Errors...)
+			errors = append(errors, statusValidation.Errors...)
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": errors,
+			})
+			return
+		}
+
+		// Check if user agent already exists
+		var existingUserAgent models.UserAgent
+		if err := db.Where("user_agent = ?", userAgent.UserAgent).First(&existingUserAgent).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "User agent already exists", "user_agent": userAgent.UserAgent})
 			return
 		}
 
@@ -713,7 +865,30 @@ func CreateCountry(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var country models.Country
 		if err := c.ShouldBindJSON(&country); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
+			return
+		}
+
+		// Comprehensive validation
+		countryValidation := validation.ValidateCountry(country.Code)
+		statusValidation := validation.ValidateStatus(country.Status)
+
+		if !countryValidation.IsValid || !statusValidation.IsValid {
+			errors := []validation.ValidationError{}
+			errors = append(errors, countryValidation.Errors...)
+			errors = append(errors, statusValidation.Errors...)
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": errors,
+			})
+			return
+		}
+
+		// Check if country already exists
+		var existingCountry models.Country
+		if err := db.Where("code = ?", country.Code).First(&existingCountry).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Country code already exists", "code": country.Code})
 			return
 		}
 
@@ -886,20 +1061,57 @@ func DeleteCountry(db *gorm.DB) gin.HandlerFunc {
 }
 
 // CreateCharsetRule fügt eine neue Charset-Regel hinzu
+// @Summary      Neue Charset-Regel anlegen
+// @Description  Legt eine neue Charset-Regel mit Status an
+// @Tags         charset
+// @Accept       json
+// @Produce      json
+// @Param        charset  body      models.CharsetRule  true  "Charset-Daten"
+// @Success      200 {object}  models.CharsetRule
+// @Failure      400 {object}  map[string]string
+// @Failure      500 {object}  map[string]string
+// @Router       /charset [post]
 func CreateCharsetRule(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var rule models.CharsetRule
-		if err := c.ShouldBindJSON(&rule); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		var charset models.CharsetRule
+		if err := c.ShouldBindJSON(&charset); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
 			return
 		}
-		if err := db.Create(&rule).Error; err != nil {
+
+		// Comprehensive validation
+		charsetValidation := validation.ValidateCharset(charset.Charset)
+		statusValidation := validation.ValidateStatus(charset.Status)
+
+		if !charsetValidation.IsValid || !statusValidation.IsValid {
+			errors := []validation.ValidationError{}
+			errors = append(errors, charsetValidation.Errors...)
+			errors = append(errors, statusValidation.Errors...)
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": errors,
+			})
+			return
+		}
+
+		// Check if charset already exists
+		var existingCharset models.CharsetRule
+		if err := db.Where("charset = ?", charset.Charset).First(&existingCharset).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Charset already exists", "charset": charset.Charset})
+			return
+		}
+
+		// Save to MySQL first
+		if err := db.Create(&charset).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save charset rule"})
 			return
 		}
-		_ = services.SyncCharsetToES(rule)
-		services.PublishEvent("charset", "created", rule)
-		c.JSON(http.StatusOK, rule)
+
+		// Publish event for async processing
+		services.PublishEvent("charset", "created", charset)
+
+		c.JSON(http.StatusOK, charset)
 	}
 }
 
@@ -1073,20 +1285,69 @@ func SyncUsernamesHandler(db *gorm.DB) gin.HandlerFunc {
 }
 
 // CreateUsernameRule fügt eine neue Username-Regel hinzu
+// @Summary      Neue Username-Regel anlegen
+// @Description  Legt eine neue Username-Regel mit Status an
+// @Tags         username
+// @Accept       json
+// @Produce      json
+// @Param        username  body      models.UsernameRule  true  "Username-Daten"
+// @Success      200 {object}  models.UsernameRule
+// @Failure      400 {object}  map[string]string
+// @Failure      500 {object}  map[string]string
+// @Router       /username [post]
 func CreateUsernameRule(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var rule models.UsernameRule
-		if err := c.ShouldBindJSON(&rule); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		var username models.UsernameRule
+		if err := c.ShouldBindJSON(&username); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
 			return
 		}
-		if err := db.Create(&rule).Error; err != nil {
+
+		// Comprehensive validation
+		usernameValidation := validation.ValidateUsername(username.Username)
+		statusValidation := validation.ValidateStatus(username.Status)
+
+		if !usernameValidation.IsValid || !statusValidation.IsValid {
+			errors := []validation.ValidationError{}
+			errors = append(errors, usernameValidation.Errors...)
+			errors = append(errors, statusValidation.Errors...)
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": errors,
+			})
+			return
+		}
+
+		// Validate regex if IsRegex is true
+		if username.IsRegex {
+			regexValidation := validation.ValidateRegex(username.Username)
+			if !regexValidation.IsValid {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":   "Invalid regex pattern",
+					"details": regexValidation.Errors,
+				})
+				return
+			}
+		}
+
+		// Check if username already exists
+		var existingUsername models.UsernameRule
+		if err := db.Where("username = ?", username.Username).First(&existingUsername).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Username rule already exists", "username": username.Username})
+			return
+		}
+
+		// Save to MySQL first
+		if err := db.Create(&username).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save username rule"})
 			return
 		}
-		_ = services.SyncUsernameToES(rule)
-		services.PublishEvent("username", "created", rule)
-		c.JSON(http.StatusOK, rule)
+
+		// Publish event for async processing
+		services.PublishEvent("username", "created", username)
+
+		c.JSON(http.StatusOK, username)
 	}
 }
 
