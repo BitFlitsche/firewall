@@ -92,13 +92,14 @@ const FilterControls = React.memo(({
 }) => (
     <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField
-            label="Country Code Filter"
+            label="Search Countries"
             value={searchValue}
             onChange={onSearchChange}
             onFocus={onSearchFocus}
             onBlur={onSearchBlur}
             ref={searchInputRef}
             size="small"
+            placeholder="Search by code or name..."
         />
         <FormControl size="small" sx={{ minWidth: 140 }}>
             <InputLabel shrink>Status</InputLabel>

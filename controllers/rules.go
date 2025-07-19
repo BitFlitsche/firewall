@@ -1115,8 +1115,9 @@ func GetCountries(db *gorm.DB) gin.HandlerFunc {
 			args = append(args, status)
 		}
 		if search != "" {
-			conditions = append(conditions, "code LIKE ?")
-			args = append(args, "%"+search+"%")
+			// Search in both code and name fields
+			conditions = append(conditions, "(code LIKE ? OR name LIKE ?)")
+			args = append(args, "%"+search+"%", "%"+search+"%")
 		}
 
 		// Build WHERE clause
