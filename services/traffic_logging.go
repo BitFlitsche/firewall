@@ -25,6 +25,7 @@ type FilterRequest struct {
 	UserAgent string `json:"user_agent"`
 	Username  string `json:"username"`
 	Country   string `json:"country"`
+	ASN       string `json:"asn"`
 	Charset   string `json:"charset"`
 	Content   string `json:"content"`
 }
@@ -64,6 +65,7 @@ func (tls *TrafficLoggingService) LogFilterRequest(req FilterRequest, result Tra
 		UserAgent:      req.UserAgent,
 		Username:       req.Username,
 		Country:        req.Country,
+		ASN:            req.ASN,
 		Charset:        req.Charset,
 		Content:        req.Content,
 		FinalResult:    result.FinalResult,

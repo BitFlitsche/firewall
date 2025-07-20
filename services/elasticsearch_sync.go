@@ -236,6 +236,78 @@ func IndexUsernameRule(username models.UsernameRule) error {
 	return nil
 }
 
+// IndexASN indexes an ASN to Elasticsearch
+func IndexASN(asn models.ASN) error {
+	es := config.ESClient
+
+	doc := map[string]interface{}{
+		"asn":    asn.ASN,
+		"rir":    asn.RIR,
+		"domain": asn.Domain,
+		"cc":     asn.Country,
+		"asname": asn.Name,
+		"status": asn.Status,
+		"source": asn.Source,
+	}
+
+	docJSON, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+
+	// Use database ID as document ID
+	docID := fmt.Sprintf("%d", asn.ID)
+	req := esapi.IndexRequest{
+		Index:      "asns",
+		DocumentID: docID,
+		Body:       strings.NewReader(string(docJSON)),
+	}
+
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		log.Printf("Error indexing ASN: %s", res.String())
+		return err
+	}
+
+	log.Printf("Successfully indexed ASN: %s", asn.ASN)
+	return nil
+}
+
+// SyncASNToES synchronizes an ASN rule to Elasticsearch
+func SyncASNToES(asn models.ASN) error {
+	return IndexASN(asn)
+}
+
+// DeleteASNFromES removes an ASN rule from Elasticsearch
+func DeleteASNFromES(asnID uint) error {
+	es := config.ESClient
+
+	docID := fmt.Sprintf("%d", asnID)
+	req := esapi.DeleteRequest{
+		Index:      "asns",
+		DocumentID: docID,
+	}
+
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		log.Printf("Error deleting ASN from Elasticsearch: %s", res.String())
+		return err
+	}
+
+	log.Printf("Successfully deleted ASN from Elasticsearch: %d", asnID)
+	return nil
+}
+
 // SyncAllIPs syncs all IP addresses from MySQL to Elasticsearch
 func SyncAllIPs() error {
 	var ips []models.IP
@@ -338,6 +410,23 @@ func SyncAllUsernameRules() error {
 	return nil
 }
 
+// SyncAllASNs syncs all ASNs from MySQL to Elasticsearch
+func SyncAllASNs() error {
+	var asns []models.ASN
+	if err := config.DB.Find(&asns).Error; err != nil {
+		return err
+	}
+
+	for _, asn := range asns {
+		if err := IndexASN(asn); err != nil {
+			log.Printf("Error syncing ASN %s: %v", asn.ASN, err)
+		}
+	}
+
+	log.Printf("Synced %d ASNs to Elasticsearch", len(asns))
+	return nil
+}
+
 // SyncAllData syncs all data from MySQL to Elasticsearch
 func SyncAllData() error {
 	log.Println("Starting full data sync to Elasticsearch...")
@@ -364,6 +453,10 @@ func SyncAllData() error {
 
 	if err := SyncAllUsernameRules(); err != nil {
 		log.Printf("Error syncing username rules: %v", err)
+	}
+
+	if err := SyncAllASNs(); err != nil {
+		log.Printf("Error syncing ASNs: %v", err)
 	}
 
 	log.Println("Full data sync completed")
@@ -487,5 +580,25 @@ func DeleteUsernameIndex() error {
 	}
 
 	log.Println("Username index deleted successfully")
+	return nil
+}
+
+// DeleteASNIndex deletes the ASN index from Elasticsearch
+func DeleteASNIndex() error {
+	es := config.ESClient
+	req := esapi.IndicesDeleteRequest{
+		Index: []string{"asns"},
+	}
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() && res.StatusCode != 404 {
+		return fmt.Errorf("error deleting ASN index: %s", res.String())
+	}
+
+	log.Println("ASN index deleted successfully")
 	return nil
 }

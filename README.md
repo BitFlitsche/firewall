@@ -4,8 +4,9 @@ A comprehensive firewall management system with Go backend and React frontend.
 
 ## Features
 
-- **Real-time filtering** with support for IPs, emails, user agents, countries, charsets, and usernames
+- **Real-time filtering** with support for IPs, emails, user agents, countries, charsets, usernames, and ASNs
 - **Geographic filtering** with automatic IP geolocation using MaxMind GeoLite2 database
+- **ASN filtering** with automatic ASN lookup using MaxMind GeoLite2-ASN database
 - **Server-side filtering, sorting, and pagination** for optimal performance
 - **Elasticsearch integration** for advanced search capabilities
 - **Configurable distributed locking** for single and multi-instance deployments
@@ -114,6 +115,7 @@ export FIREWALL_LOCKING_FULL_SYNC_TTL=30m
 - `GET /api/v1/countries` - List countries
 - `GET /api/v1/charsets` - List charsets
 - `GET /api/v1/usernames` - List usernames
+- `GET /api/v1/asns` - List ASNs
 - `GET /sync/status` - Check sync status and distributed locking
 
 ### Input Validation
@@ -177,6 +179,62 @@ curl -X POST http://localhost:8081/api/filter \
 - `GeoLite2-Country.mmdb` in the root directory (~9MB)
 
 For detailed geographic filtering documentation, see [docs/GEOGRAPHIC_FILTERING.md](docs/GEOGRAPHIC_FILTERING.md).
+
+### ASN Filtering
+
+The system supports automatic ASN (Autonomous System Number) filtering using MaxMind's GeoLite2-ASN database:
+
+- **Automatic ASN Lookup**: IP addresses are automatically resolved to their ASN
+- **Manual ASN Override**: Users can provide ASN directly in the request
+- **ASN Rules**: Create rules to allow, deny, or whitelist specific ASNs
+- **Spamhaus Integration**: Import ASN data from Spamhaus ASN-DROP list
+- **Automatic Scheduling**: Daily Spamhaus imports at midnight with distributed locking
+- **Manual Entry Protection**: Manually created/edited entries are preserved during imports
+- **Private IP Handling**: Private/local IPs are skipped for ASN lookup
+- **Performance**: Fast local database lookups with no external API calls
+- **Management UI**: Full CRUD interface for managing ASN rules
+- **Optional Fields**: RIR, Domain, and Country fields are optional for flexible data entry
+
+**Usage Examples:**
+```bash
+# Create ASN rule
+curl -X POST http://localhost:8081/api/asn \
+  -H "Content-Type: application/json" \
+  -d '{"asn": "AS7922", "name": "Comcast Cable Communications", "status": "denied"}'
+
+# Test ASN filtering (automatic lookup)
+curl -X POST http://localhost:8081/api/filter \
+  -H "Content-Type: application/json" \
+  -d '{"ip": "68.85.108.1"}'
+# Response: {"result":"denied","reason":"asn denied","field":"asn","value":"AS7922"}
+
+# Test ASN filtering (manual override)
+curl -X POST http://localhost:8081/api/filter \
+  -H "Content-Type: application/json" \
+  -d '{"ip": "8.8.8.8", "asn": "AS7922"}'
+# Response: {"result":"denied","reason":"asn denied","field":"asn","value":"AS7922"}
+
+# Import Spamhaus ASN-DROP data
+curl -X POST http://localhost:8081/api/asns/import-spamhaus
+# Response: {"message":"Spamhaus ASN-DROP data imported successfully"}
+
+# Get Spamhaus import statistics
+curl -X GET http://localhost:8081/api/asns/spamhaus-stats
+# Response: {"total_spamhaus_asns":401,"last_sync":"2025-01-20T10:30:00Z"}
+
+# Force Spamhaus import (with distributed locking)
+
+# Response: {"message":"Spamhaus import triggered successfully"}
+
+# Check Spamhaus import status
+curl -X GET http://localhost:8081/api/asns/spamhaus-status
+# Response: {"is_running":false,"next_scheduled":"2025-01-21 00:00:00","next_scheduled_relative":"8h30m15s"}
+```
+
+**Required Files:**
+- `GeoLite2-ASN.mmdb` in the root directory (~10MB)
+
+For detailed ASN filtering documentation, see [docs/ASN_FILTERING.md](docs/ASN_FILTERING.md).
 
 ## Development
 

@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"firewall/models" // Import your models package
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -16,11 +17,20 @@ func Migrate(db *gorm.DB) error {
 		&models.Country{},
 		&models.CharsetRule{},
 		&models.UsernameRule{},
+		&models.ASN{},
 		&models.SyncTracker{},
 		&models.TrafficLog{},
 		&models.DataRelationship{},
 		&models.AnalyticsAggregation{},
 	)
+	if err != nil {
+		return err
+	}
+
+	// Run manual migrations for schema changes
+	if err := runManualMigrations(db); err != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -38,6 +48,8 @@ func Migrate(db *gorm.DB) error {
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_charset_charset ON charset_rules (charset)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_status ON username_rules (status)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_username ON username_rules (username)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_asn_status ON asns (status)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_asn_asn ON asns (asn)")
 
 	// Composite indexes for common filter combinations (status + search field)
 	// Using limited key lengths to prevent MySQL key length errors
@@ -53,6 +65,8 @@ func Migrate(db *gorm.DB) error {
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_charset_charset_status ON charset_rules (charset, status)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_status_username ON username_rules (status, username)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_username_status ON username_rules (username, status)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_asn_status_asn ON asns (status, asn)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_asn_asn_status ON asns (asn, status)")
 
 	// Composite indexes for sorting with filtering
 	// Using limited key lengths to prevent MySQL key length errors
@@ -68,6 +82,8 @@ func Migrate(db *gorm.DB) error {
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_charset_status_charset_id ON charset_rules (status, charset, id)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_status_id ON username_rules (status, id)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_username_status_username_id ON username_rules (status, username, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_asn_status_id ON asns (status, id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_asn_status_asn_id ON asns (status, asn, id)")
 
 	// Traffic logging indexes
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_traffic_logs_timestamp ON traffic_logs (timestamp)")
@@ -87,6 +103,26 @@ func Migrate(db *gorm.DB) error {
 	// Analytics aggregations indexes
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_analytics_aggregations_date_type ON analytics_aggregations (aggregation_date, aggregation_type)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_analytics_aggregations_type ON analytics_aggregations (aggregation_type)")
+
+	return nil
+}
+
+// runManualMigrations runs manual SQL migrations
+func runManualMigrations(db *gorm.DB) error {
+	// Migration to make ASN fields optional
+	migrations := []string{
+		"ALTER TABLE asns MODIFY COLUMN rir VARCHAR(20) NULL",
+		"ALTER TABLE asns MODIFY COLUMN domain VARCHAR(255) NULL",
+		"ALTER TABLE asns MODIFY COLUMN country VARCHAR(2) NULL",
+		"ALTER TABLE asns COMMENT = 'ASN table with optional RIR, Domain, and Country fields'",
+	}
+
+	// Execute each migration separately
+	for _, migration := range migrations {
+		if err := db.Exec(migration).Error; err != nil {
+			return fmt.Errorf("migration failed: %w", err)
+		}
+	}
 
 	return nil
 }

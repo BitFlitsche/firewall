@@ -24,12 +24,12 @@ type FilterResult struct {
 	Value  interface{} `json:"value,omitempty"`
 }
 
-const NumFilters = 5
+const NumFilters = 6
 
 // EvaluateFilters runs all filters concurrently and returns the final result
-func EvaluateFilters(ctx context.Context, ip, email, userAgent, country, username string) (FilterResult, error) {
+func EvaluateFilters(ctx context.Context, ip, email, userAgent, country, asn, username string) (FilterResult, error) {
 	// Channel to collect filter results
-	results := make(chan FilterResult, 5)
+	results := make(chan FilterResult, 6)
 
 	// Auto-geolocate IP if country is empty and IP is provided
 	if country == "" && ip != "" {
@@ -46,6 +46,7 @@ func EvaluateFilters(ctx context.Context, ip, email, userAgent, country, usernam
 	go filterUserAgent(ctx, userAgent, results)
 	go filterCountry(ctx, country, results)
 	go filterUsername(ctx, username, results)
+	go filterASN(ctx, ip, asn, results)
 
 	// Collect and evaluate the results
 	return collectResults(ctx, results)
@@ -567,6 +568,80 @@ func filterUsername(ctx context.Context, username string, result chan FilterResu
 
 	// No matches found
 	result <- FilterResult{Result: "allowed", Field: "username", Value: username}
+}
+
+// filterASN runs the ASN filter
+func filterASN(ctx context.Context, ip, asn string, result chan FilterResult) {
+	// If ASN is provided manually, use it
+	if asn != "" {
+		// Validate ASN format
+		if len(asn) < 3 || !strings.HasPrefix(asn, "AS") {
+			result <- FilterResult{Result: "error", Reason: "invalid asn format", Field: "asn", Value: asn}
+			return
+		}
+	} else if ip != "" {
+		// Get ASN from IP using geolocation
+		asn = GetASNFromIPWithFallback(ip)
+		if asn == "" {
+			// If we can't get ASN, just allow
+			result <- FilterResult{Result: "allowed", Reason: "no asn found", Field: "asn", Value: ip}
+			return
+		}
+	} else {
+		// No IP or ASN provided
+		result <- FilterResult{Result: "allowed", Reason: "no ip or asn provided", Field: "asn", Value: ""}
+		return
+	}
+
+	es := config.ESClient
+
+	// Query ASN rules
+	query := `{
+		"query": {
+			"match": {
+				"asn": "` + asn + `"
+			}
+		}
+	}`
+
+	req := esapi.SearchRequest{
+		Index: []string{"asns"},
+		Body:  strings.NewReader(query),
+	}
+
+	res, err := req.Do(ctx, es)
+	if err != nil {
+		result <- FilterResult{Result: "error", Reason: "elasticsearch error", Field: "asn", Value: asn}
+		return
+	}
+	defer res.Body.Close()
+
+	var r map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+		result <- FilterResult{Result: "error", Reason: "decode error", Field: "asn", Value: asn}
+		return
+	}
+
+	if hits, found := r["hits"].(map[string]interface{}); found {
+		totalHits := hits["total"].(map[string]interface{})["value"].(float64)
+		if totalHits > 0 {
+			firstHit := hits["hits"].([]interface{})[0].(map[string]interface{})
+			source := firstHit["_source"].(map[string]interface{})
+			status := source["status"].(string)
+
+			if status == "denied" {
+				result <- FilterResult{Result: "denied", Reason: "asn denied", Field: "asn", Value: asn}
+			} else if status == "whitelisted" {
+				result <- FilterResult{Result: "whitelisted", Reason: "asn whitelisted", Field: "asn", Value: asn}
+			} else {
+				result <- FilterResult{Result: "allowed", Field: "asn", Value: asn}
+			}
+		} else {
+			result <- FilterResult{Result: "allowed", Field: "asn", Value: asn}
+		}
+	} else {
+		result <- FilterResult{Result: "error", Reason: "no hits", Field: "asn", Value: asn}
+	}
 }
 
 // SyncCharsetToES synchronisiert eine CharsetRule zu Elasticsearch

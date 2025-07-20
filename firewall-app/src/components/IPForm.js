@@ -34,12 +34,14 @@ const IPFormComponent = React.memo(({
     ip, 
     status, 
     isCidr,
+    source,
     message, 
     error, 
     editId, 
     onIpChange, 
     onStatusChange, 
     onCidrChange,
+    onSourceChange,
     onSubmit, 
     onCancelEdit 
 }) => (
@@ -78,6 +80,16 @@ const IPFormComponent = React.memo(({
                 </Tooltip>
             }
         />
+        <TextField
+            select
+            label="Source"
+            value={source}
+            onChange={onSourceChange}
+            fullWidth
+        >
+            <MenuItem value="manual">Manual</MenuItem>
+            <MenuItem value="stopforumspam_toxic_cidr">StopForumSpam Toxic CIDR</MenuItem>
+        </TextField>
         <Button type="submit" variant="contained" color="primary">
             {editId ? 'Update IP' : 'Add IP'}
         </Button>
@@ -237,6 +249,7 @@ const IPTable = React.memo(({
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>Type</TableCell>
+                                <TableCell>Source</TableCell>
                                 <TableCell>Actions</TableCell>
                             </TableRow>
                         </TableHead>
@@ -252,6 +265,7 @@ const IPTable = React.memo(({
                                         <TableCell>{ipItem.address}</TableCell>
                                         <TableCell>{ipItem.status}</TableCell>
                                         <TableCell>{ipItem.is_cidr ? 'CIDR Block' : 'Single IP'}</TableCell>
+                                        <TableCell>{ipItem.source || 'manual'}</TableCell>
                                         <TableCell>
                                             <IconButton onClick={() => onEdit(ipItem)} size="small">
                                                 <EditIcon />
@@ -285,6 +299,7 @@ const IPForm = () => {
     const [ip, setIp] = useState('');
     const [status, setStatus] = useState('denied');
     const [isCidr, setIsCidr] = useState(false);
+    const [source, setSource] = useState('manual');
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [conflicts, setConflicts] = useState([]);
@@ -414,14 +429,16 @@ const IPForm = () => {
                 await axiosInstance.put(`/api/ip/${editId}`, {
                     address: ip,
                     status: status,
-                    is_cidr: isCidr
+                    is_cidr: isCidr,
+                    source: 'manual'
                 });
                 setMessage('IP address updated successfully');
             } else {
                 await axiosInstance.post('/api/ip', {
                     address: ip,
                     status: status,
-                    is_cidr: isCidr
+                    is_cidr: isCidr,
+                    source: 'manual'
                 });
                 setMessage('IP address added successfully');
             }
@@ -544,6 +561,7 @@ const IPForm = () => {
         setIp(ipItem.address);
         setStatus(ipItem.status);
         setIsCidr(ipItem.is_cidr || false);
+        setSource('manual'); // Always set to manual when editing
         setEditId(ipItem.id);
     }, []);
 
@@ -603,7 +621,50 @@ const IPForm = () => {
         setIp('');
         setStatus('denied');
         setIsCidr(false);
+        setSource('manual');
         setEditId(null);
+    }, []);
+
+    const handleStopForumSpamImport = useCallback(async () => {
+        if (window.confirm('This will import toxic IP addresses in CIDR format from StopForumSpam. Existing StopForumSpam records will be replaced. Continue?')) {
+            try {
+                setLoading(true);
+                await axiosInstance.post('/api/ips/import-stopforumspam');
+                setMessage('StopForumSpam toxic CIDR data imported successfully!');
+                // Wait a bit for the import to complete, then refresh
+                setTimeout(() => {
+                    setRefresh(prev => !prev);
+                }, 2000);
+            } catch (err) {
+                const errorMessage = err.response?.data?.error || err.message || 'Failed to import StopForumSpam data';
+                setError(errorMessage);
+            } finally {
+                setLoading(false);
+            }
+        }
+    }, []);
+
+    const handleStopForumSpamStats = useCallback(async () => {
+        try {
+            const response = await axiosInstance.get('/api/ips/stopforumspam-stats');
+            const stats = response.data;
+            const statsMessage = `StopForumSpam Toxic CIDRs: ${stats.total_stopforumspam_cidrs || 0}\nLast Import: ${stats.last_import ? new Date(stats.last_import).toLocaleString() : 'Never'}`;
+            alert(statsMessage);
+        } catch (err) {
+            setError('Failed to get StopForumSpam stats');
+        }
+    }, []);
+
+    const handleStopForumSpamStatus = useCallback(async () => {
+        try {
+            const response = await axiosInstance.get('/api/ips/stopforumspam-status');
+            const status = response.data;
+            const importStatus = status.import_enabled ? 'Enabled' : 'Disabled';
+            const statusMessage = `Import Enabled: ${importStatus}\nImport Running: ${status.is_running ? 'Yes' : 'No'}\nTotal Imported: ${status.total_imported}\nLast Import: ${status.last_import}`;
+            alert(statusMessage);
+        } catch (err) {
+            setError('Failed to get StopForumSpam import status');
+        }
     }, []);
 
     const handleIpChange = useCallback((e) => {
@@ -614,20 +675,26 @@ const IPForm = () => {
         setStatus(e.target.value);
     }, []);
 
+    const handleSourceChange = useCallback((e) => {
+        setSource(e.target.value);
+    }, []);
+
     // Memoized values for components
     const formProps = React.useMemo(() => ({
         ip,
         status,
         isCidr,
+        source,
         message,
         error,
         editId,
         onIpChange: handleIpChange,
         onStatusChange: handleStatusChangeForm,
         onCidrChange: handleCidrChange,
+        onSourceChange: handleSourceChange,
         onSubmit: handleSubmit,
         onCancelEdit: handleCancelEdit
-    }), [ip, status, isCidr, message, error, editId, handleIpChange, handleStatusChangeForm, handleCidrChange, handleSubmit, handleCancelEdit]);
+    }), [ip, status, isCidr, source, message, error, editId, handleIpChange, handleStatusChangeForm, handleCidrChange, handleSourceChange, handleSubmit, handleCancelEdit]);
 
     const filterProps = React.useMemo(() => ({
         searchValue,
@@ -660,9 +727,35 @@ const IPForm = () => {
     }), [ips, loading, orderBy, order, page, rowsPerPage, total, handleSort, handleEdit, handleDelete, handleChangePage, handleChangeRowsPerPage]);
 
     return (
-        <Box sx={{ maxWidth: 700, mx: 'auto', mt: 4 }}>
+        <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4, p: 2 }}>
             <Paper sx={{ p: 3 }} elevation={3}>
                 <Typography variant="h5" gutterBottom>IP Address Management</Typography>
+                
+                {/* StopForumSpam Import Buttons */}
+                <Box sx={{ mb: 3 }}>
+                    <Button 
+                        variant="contained" 
+                        color="primary" 
+                        onClick={handleStopForumSpamImport}
+                        sx={{ mr: 2 }}
+                    >
+                        Import stopforumspam Toxic IP Addresses (CIDR)
+                    </Button>
+                    <Button 
+                        variant="outlined" 
+                        onClick={handleStopForumSpamStats}
+                        sx={{ mr: 2 }}
+                    >
+                        View StopForumSpam Stats
+                    </Button>
+                    <Button 
+                        variant="outlined" 
+                        onClick={handleStopForumSpamStatus}
+                    >
+                        Check Import Status
+                    </Button>
+                </Box>
+                
                 <IPFormComponent {...formProps} />
                 {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}

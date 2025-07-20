@@ -85,6 +85,25 @@ func SetupRoutes(r *gin.Engine) {
 	api.GET("/usernames/stats", controllers.GetUsernameStats(db))
 	api.POST("/usernames/recreate-index", controllers.RecreateUsernameIndex(db))
 
+	// ASN CRUD
+	api.POST("/asn", controllers.CreateASN(db))
+	api.GET("/asns", controllers.GetASNs(db))
+	api.PUT("/asn/:id", controllers.UpdateASN(db))
+	api.DELETE("/asn/:id", controllers.DeleteASN(db))
+	api.GET("/asns/stats", controllers.GetASNStats(db))
+	api.GET("/asns/filter-stats", controllers.GetASNFilterStats(db))
+	api.POST("/asns/recreate-index", controllers.RecreateASNIndex(db))
+
+	// Spamhaus ASN-DROP import
+	api.POST("/asns/import-spamhaus", controllers.ImportSpamhausASNDrop(db))
+	api.GET("/asns/spamhaus-stats", controllers.GetSpamhausImportStats(db))
+	api.GET("/asns/spamhaus-status", controllers.GetSpamhausImportStatus(db))
+
+	// StopForumSpam toxic CIDR import
+	api.POST("/ips/import-stopforumspam", controllers.ImportStopForumSpamToxicCIDRs(db))
+	api.GET("/ips/stopforumspam-stats", controllers.GetStopForumSpamImportStats(db))
+	api.GET("/ips/stopforumspam-status", controllers.GetStopForumSpamImportStatus(db))
+
 	// Filtering route
 	api.POST("/filter", controllers.FilterRequestHandler(db))
 

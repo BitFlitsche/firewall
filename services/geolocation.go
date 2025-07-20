@@ -10,6 +10,7 @@ import (
 )
 
 var geoipReader *geoip2.Reader
+var asnReader *geoip2.Reader
 
 // InitGeoIP initializes the MaxMind GeoIP database reader
 func InitGeoIP() error {
@@ -30,10 +31,32 @@ func InitGeoIP() error {
 	return nil
 }
 
+// InitASN initializes the MaxMind ASN database reader
+func InitASN() error {
+	// Look for the ASN database file in the root directory
+	dbPath := "GeoLite2-ASN.mmdb"
+
+	// Check if file exists
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		return fmt.Errorf("ASN database not found at %s. Please download GeoLite2-ASN.mmdb to the root directory", dbPath)
+	}
+
+	reader, err := geoip2.Open(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open ASN database: %v", err)
+	}
+
+	asnReader = reader
+	return nil
+}
+
 // CloseGeoIP closes the GeoIP database reader
 func CloseGeoIP() {
 	if geoipReader != nil {
 		geoipReader.Close()
+	}
+	if asnReader != nil {
+		asnReader.Close()
 	}
 }
 
@@ -109,4 +132,47 @@ func GetCountryFromIPWithFallback(ipStr string) string {
 		return ""
 	}
 	return countryCode
+}
+
+// GetASNFromIP resolves an IP address to an ASN
+func GetASNFromIP(ipStr string) (string, error) {
+	if asnReader == nil {
+		return "", fmt.Errorf("ASN database not initialized")
+	}
+
+	// Parse the IP address
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return "", fmt.Errorf("invalid IP address: %s", ipStr)
+	}
+
+	// Skip private/local IPs
+	if IsPrivateIP(ip) {
+		return "", fmt.Errorf("private IP address: %s", ipStr)
+	}
+
+	// Look up the ASN
+	record, err := asnReader.ASN(ip)
+	if err != nil {
+		return "", fmt.Errorf("failed to lookup ASN for IP %s: %v", ipStr, err)
+	}
+
+	// Return the ASN number
+	asnNumber := record.AutonomousSystemNumber
+	if asnNumber == 0 {
+		return "", fmt.Errorf("no ASN found for IP: %s", ipStr)
+	}
+
+	return fmt.Sprintf("AS%d", asnNumber), nil
+}
+
+// GetASNFromIPWithFallback resolves an IP to ASN, returns empty string on error
+func GetASNFromIPWithFallback(ipStr string) string {
+	asn, err := GetASNFromIP(ipStr)
+	if err != nil {
+		// Log the error but don't fail the request
+		fmt.Printf("ASN lookup failed for IP %s: %v\n", ipStr, err)
+		return ""
+	}
+	return asn
 }

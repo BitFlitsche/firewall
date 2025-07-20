@@ -25,6 +25,7 @@ type Config struct {
 	Security SecurityConfig `mapstructure:"security"`
 	Locking  LockingConfig  `mapstructure:"locking"`
 	Caching  CachingConfig  `mapstructure:"caching"`
+	Spamhaus SpamhausConfig `mapstructure:"spamhaus"`
 }
 
 // ServerConfig holds server-related configuration
@@ -113,6 +114,14 @@ type CachingConfig struct {
 	FilterTTL   time.Duration `mapstructure:"filter_ttl"`
 	ListTTL     time.Duration `mapstructure:"list_ttl"`
 	StatsTTL    time.Duration `mapstructure:"stats_ttl"`
+}
+
+// SpamhausConfig holds Spamhaus import configuration
+type SpamhausConfig struct {
+	AutoImportEnabled bool          `mapstructure:"auto_import_enabled"`
+	ImportSchedule    string        `mapstructure:"import_schedule"`
+	ImportLockTTL     time.Duration `mapstructure:"import_lock_ttl"`
+	ImportURL         string        `mapstructure:"import_url"`
 }
 
 // Global config instance
@@ -230,6 +239,12 @@ func setDefaults() {
 	viper.SetDefault("caching.filter_ttl", "5m")
 	viper.SetDefault("caching.list_ttl", "2m")
 	viper.SetDefault("caching.stats_ttl", "30s")
+
+	// Spamhaus defaults
+	viper.SetDefault("spamhaus.auto_import_enabled", false)   // Disabled by default
+	viper.SetDefault("spamhaus.import_schedule", "0 0 * * *") // Daily at midnight (cron format)
+	viper.SetDefault("spamhaus.import_lock_ttl", "30m")
+	viper.SetDefault("spamhaus.import_url", "https://www.spamhaus.org/drop/asndrop.json")
 }
 
 // validateConfig validates the configuration

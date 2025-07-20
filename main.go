@@ -55,6 +55,14 @@ func main() {
 	}
 	defer services.CloseGeoIP()
 
+	// Initialize ASN service
+	if err := services.InitASN(); err != nil {
+		log.Printf("Warning: ASN initialization failed: %v", err)
+		log.Println("ASN filtering will be disabled")
+	} else {
+		log.Println("ASN service initialized successfully")
+	}
+
 	// Initialize cache factory (switches between in-memory and distributed based on config)
 	_ = services.GetCacheFactory()
 

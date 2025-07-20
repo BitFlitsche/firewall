@@ -22,6 +22,7 @@ const FilterForm = () => {
         email: '',
         user_agent: '',
         country: '',
+        asn: '',
         username: ''
     });
     const [message, setMessage] = useState('');
@@ -46,6 +47,7 @@ const FilterForm = () => {
                 email: '',
                 user_agent: '',
                 country: '',
+                asn: '',
                 username: ''
             });
         } catch (err) {
@@ -94,6 +96,14 @@ const FilterForm = () => {
                         onChange={handleInputChange('country')}
                         placeholder="Enter country code to filter"
                         fullWidth
+                    />
+                    <TextField
+                        label="ASN"
+                        value={filterData.asn}
+                        onChange={handleInputChange('asn')}
+                        placeholder="Enter ASN to filter (e.g., AS7922)"
+                        fullWidth
+                        helperText="Leave empty for automatic ASN lookup from IP"
                     />
                     <Button type="submit" variant="contained" color="primary" size="large">
                         Apply Filter

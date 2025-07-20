@@ -16,6 +16,7 @@ type TrafficLog struct {
 	UserAgent string `json:"user_agent" gorm:"type:text"`
 	Username  string `json:"username" gorm:"size:255"`
 	Country   string `json:"country" gorm:"size:10"`
+	ASN       string `json:"asn" gorm:"size:20"`
 	Charset   string `json:"charset" gorm:"size:50"`
 	Content   string `json:"content" gorm:"type:text"`
 

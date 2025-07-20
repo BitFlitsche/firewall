@@ -248,31 +248,42 @@ const CustomFieldsManager = memo(({
                 aria-controls="charset-fields-content"
                 id="charset-fields-header"
                 sx={{
-                    backgroundColor: '#f1f3f4',
-                    borderBottom: '1px solid #e3e6ea',
+                    backgroundColor: 'transparent',
+                    borderColor: '#ccc',
+                    color: '#666',
                     '&:hover': {
-                        backgroundColor: '#e8eaed',
+                        backgroundColor: '#f5f5f5',
+                        borderColor: '#1976d2',
+                        color: '#1976d2'
                     },
                     '&.Mui-expanded': {
-                        backgroundColor: '#e8eaed',
-                        minHeight: '48px',
+                        backgroundColor: '#e3f2fd',
+                        borderColor: '#1976d2',
+                        color: '#1976d2',
+                        fontWeight: 600,
                     }
                 }}
             >
-                <Typography variant="h6" sx={{ color: '#1a73e8', fontWeight: 500 }}>
-                    Charset Filter Fields
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    🔧 Charset Filter Fields
                 </Typography>
             </AccordionSummary>
-            <AccordionDetails sx={{ backgroundColor: '#ffffff', p: 3 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <AccordionDetails sx={{ 
+                backgroundColor: '#f8f9fa', 
+                p: 3,
+                border: '1px solid #e0e0e0',
+                borderRadius: 2,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, color: '#666' }}>
                     Select which fields should be checked for charset detection in the /filter endpoint.
                 </Typography>
 
                 {/* Standard Fields */}
-                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: '#1976d2' }}>
                     Standard Fields
                 </Typography>
-                <Box sx={{ mb: 2 }}>
+                <Box sx={{ mb: 3 }}>
                     {standardFields.map(field => (
                         <FormControlLabel
                             key={field.name}
@@ -281,34 +292,88 @@ const CustomFieldsManager = memo(({
                                     checked={field.enabled}
                                     onChange={() => onStandardFieldToggle(field.name)}
                                     disabled={false}
+                                    sx={{
+                                        color: '#1976d2',
+                                        '&.Mui-checked': {
+                                            color: '#1976d2',
+                                        },
+                                    }}
                                 />
                             }
                             label={
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 1,
+                                    p: 1,
+                                    borderRadius: 1,
+                                    backgroundColor: field.enabled ? '#e3f2fd' : 'transparent',
+                                    border: field.enabled ? '1px solid #1976d2' : '1px solid transparent',
+                                    transition: 'all 0.2s ease'
+                                }}>
                                     {field.name}
-                                    <Chip label="Standard" size="small" color="primary" variant="outlined" />
+                                    <Chip 
+                                        label="Standard" 
+                                        size="small" 
+                                        color="primary" 
+                                        variant="outlined"
+                                        sx={{ 
+                                            borderColor: '#1976d2',
+                                            color: '#1976d2'
+                                        }}
+                                    />
                                 </Box>
                             }
+                            sx={{
+                                margin: '4px 0',
+                                '&:hover': {
+                                    backgroundColor: '#f5f5f5',
+                                    borderRadius: 1,
+                                    padding: '4px',
+                                    margin: '0 -4px'
+                                }
+                            }}
                         />
                     ))}
                 </Box>
 
                 {/* Custom Fields */}
-                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: '#1976d2' }}>
                     Custom Fields
                 </Typography>
-                <Box sx={{ mb: 2 }}>
+                <Box sx={{ mb: 3 }}>
                     {customFields.length === 0 ? (
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary" sx={{ 
+                            p: 2, 
+                            backgroundColor: '#f5f5f5', 
+                            borderRadius: 1,
+                            border: '1px dashed #ccc',
+                            textAlign: 'center'
+                        }}>
                             No custom fields added yet.
                         </Typography>
                     ) : (
                         <List dense>
                             {customFields.map(field => (
-                                <ListItem key={field.name} sx={{ py: 0.5 }}>
+                                <ListItem key={field.name} sx={{ 
+                                    py: 1,
+                                    mb: 1,
+                                    backgroundColor: 'white',
+                                    borderRadius: 1,
+                                    border: '1px solid #e0e0e0',
+                                    '&:hover': {
+                                        backgroundColor: '#f5f5f5',
+                                        borderColor: '#1976d2',
+                                        boxShadow: '0 2px 4px rgba(25, 118, 210, 0.2)',
+                                        transform: 'translateY(-1px)'
+                                    },
+                                    transition: 'all 0.2s ease'
+                                }}>
                                     <ListItemText 
                                         primary={field.name}
                                         secondary="Custom field"
+                                        primaryTypographyProps={{ fontWeight: 500 }}
+                                        secondaryTypographyProps={{ color: '#666' }}
                                     />
                                     <ListItemSecondaryAction>
                                         <IconButton 
@@ -316,6 +381,13 @@ const CustomFieldsManager = memo(({
                                             onClick={() => handleDeleteField(field.name)}
                                             size="small"
                                             color="error"
+                                            sx={{
+                                                '&:hover': {
+                                                    backgroundColor: '#ffebee',
+                                                    transform: 'scale(1.1)'
+                                                },
+                                                transition: 'all 0.2s ease'
+                                            }}
                                         >
                                             <DeleteIcon />
                                         </IconButton>
@@ -332,6 +404,17 @@ const CustomFieldsManager = memo(({
                     startIcon={<AddIcon />}
                     onClick={() => setNewFieldDialog(true)}
                     size="small"
+                    sx={{
+                        borderColor: '#1976d2',
+                        color: '#1976d2',
+                        '&:hover': {
+                            backgroundColor: '#e3f2fd',
+                            borderColor: '#1565c0',
+                            color: '#1565c0'
+                        },
+                        fontWeight: 500,
+                        transition: 'all 0.2s ease'
+                    }}
                 >
                     Add Custom Field
                 </Button>

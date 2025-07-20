@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"context"
@@ -29,6 +30,7 @@ import (
 var appStartTime = time.Now()
 var requestCount int64
 var errorCount int64
+var isImportRunning sync.Map
 
 // Middleware zum Zählen von Requests/Errors
 func MetricsMiddleware() gin.HandlerFunc {
@@ -1000,6 +1002,7 @@ func UpdateUserAgent(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user agent"})
 			return
 		}
+
 		services.PublishEvent("user_agent", "updated", userAgent)
 		c.JSON(http.StatusOK, userAgent)
 	}
@@ -1013,6 +1016,7 @@ func DeleteUserAgent(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user agent"})
 			return
 		}
+		_ = services.DeleteUsernameFromES(parseUint(id))
 		services.PublishEvent("user_agent", "deleted", models.UserAgent{ID: parseUint(id)})
 		c.JSON(http.StatusOK, gin.H{"message": "User agent deleted"})
 	}
@@ -2172,5 +2176,526 @@ func ToggleCustomField(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"message": "Custom field toggled successfully"})
+	}
+}
+
+// ASN CRUD Controllers
+
+// CreateASN fügt eine neue ASN-Regel hinzu
+// @Summary      Neue ASN-Regel anlegen
+// @Description  Legt eine neue ASN-Regel mit Status an
+// @Tags         asn
+// @Accept       json
+// @Produce      json
+// @Param        asn  body      models.ASN  true  "ASN-Daten"
+// @Success      200 {object}  models.ASN
+// @Failure      400 {object}  map[string]string
+// @Failure      409 {object}  map[string]string
+// @Failure      500 {object}  map[string]string
+// @Router       /asn [post]
+func CreateASN(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var asn models.ASN
+
+		if err := c.ShouldBindJSON(&asn); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
+			return
+		}
+
+		// Validate ASN format (should start with "AS" followed by numbers)
+		if len(asn.ASN) < 3 || !strings.HasPrefix(asn.ASN, "AS") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ASN must start with 'AS' followed by numbers"})
+			return
+		}
+
+		// Validate status
+		statusValidation := validation.ValidateStatus(asn.Status)
+		if !statusValidation.IsValid {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": statusValidation.Errors,
+			})
+			return
+		}
+
+		// Check for existing ASN
+		var existingASN models.ASN
+		if err := db.Where("asn = ?", asn.ASN).First(&existingASN).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "ASN already exists"})
+			return
+		}
+
+		// Create the ASN
+		if err := db.Create(&asn).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ASN"})
+			return
+		}
+
+		// Sync to Elasticsearch
+		go func() {
+			if err := services.SyncASNToES(asn); err != nil {
+				log.Printf("Failed to sync ASN to Elasticsearch: %v", err)
+			}
+		}()
+
+		c.JSON(http.StatusOK, asn)
+	}
+}
+
+// GetASNs returns all ASN rules with pagination and filtering
+func GetASNs(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Query-Parameter
+		page := c.DefaultQuery("page", "1")
+		limit := c.DefaultQuery("limit", "10")
+		status := c.Query("status")
+		rir := c.Query("rir")
+		country := c.Query("country")
+		search := c.Query("search")
+		orderBy := c.DefaultQuery("orderBy", "id")
+		order := c.DefaultQuery("order", "desc")
+
+		// Validate query parameters
+		paginationValidation := validation.ValidatePagination(page, limit)
+		if !paginationValidation.IsValid {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Invalid pagination parameters",
+				"details": paginationValidation.Errors,
+			})
+			return
+		}
+
+		// Validate status if provided
+		if status != "" {
+			statusValidation := validation.ValidateStatus(status)
+			if !statusValidation.IsValid {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":   "Invalid status parameter",
+					"details": statusValidation.Errors,
+				})
+				return
+			}
+		}
+
+		// Validate search if provided
+		if search != "" {
+			searchValidation := validation.ValidateSearch(search)
+			if !searchValidation.IsValid {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":   "Invalid search parameter",
+					"details": searchValidation.Errors,
+				})
+				return
+			}
+		}
+
+		// Validate orderBy and order
+		if orderBy != "id" && orderBy != "asn" && orderBy != "name" && orderBy != "status" {
+			orderBy = "id"
+		}
+		if order != "asc" && order != "desc" {
+			order = "desc"
+		}
+
+		// Map frontend field names to database column names
+		orderByMap := map[string]string{
+			"id":     "ID",
+			"asn":    "ASN",
+			"name":   "Name",
+			"status": "Status",
+		}
+		dbOrderBy := orderByMap[orderBy]
+
+		// Umwandlung
+		pageNum := 1
+		limitNum := 10
+		fmt.Sscanf(page, "%d", &pageNum)
+		fmt.Sscanf(limit, "%d", &limitNum)
+		if pageNum < 1 {
+			pageNum = 1
+		}
+		if limitNum < 1 {
+			limitNum = 10
+		}
+
+		// Build WHERE conditions
+		var conditions []string
+		var args []interface{}
+
+		if status != "" {
+			conditions = append(conditions, "status = ?")
+			args = append(args, status)
+		}
+		if rir != "" {
+			conditions = append(conditions, "rir = ?")
+			args = append(args, rir)
+		}
+		if country != "" {
+			conditions = append(conditions, "country = ?")
+			args = append(args, country)
+		}
+		if search != "" {
+			conditions = append(conditions, "(asn LIKE ? OR domain LIKE ? OR name LIKE ?)")
+			args = append(args, "%"+search+"%", "%"+search+"%", "%"+search+"%")
+		}
+
+		// Build WHERE clause
+		whereClause := ""
+		if len(conditions) > 0 {
+			whereClause = "WHERE " + strings.Join(conditions, " AND ")
+		}
+
+		// Use COUNT(*) OVER() for single query optimization
+		query := fmt.Sprintf(`
+			SELECT *, COUNT(*) OVER() as total_count 
+			FROM asns 
+			%s 
+			ORDER BY %s %s 
+			LIMIT ? OFFSET ?
+		`, whereClause, dbOrderBy, order)
+
+		// Add pagination parameters
+		args = append(args, limitNum, (pageNum-1)*limitNum)
+
+		// Execute query
+		var results []struct {
+			models.ASN
+			TotalCount int64 `json:"total_count"`
+		}
+
+		if err := db.Raw(query, args...).Scan(&results).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch ASNs"})
+			return
+		}
+
+		// Extract data
+		var asns []models.ASN
+		var total int64
+		if len(results) > 0 {
+			total = results[0].TotalCount
+			for _, result := range results {
+				asns = append(asns, result.ASN)
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"items": asns,
+			"total": total,
+		})
+	}
+}
+
+// GetASNStats returns statistics for ASN rules
+func GetASNStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var stats struct {
+			Total       int64 `json:"total"`
+			Allowed     int64 `json:"allowed"`
+			Denied      int64 `json:"denied"`
+			Whitelisted int64 `json:"whitelisted"`
+		}
+
+		// Get total count
+		db.Model(&models.ASN{}).Count(&stats.Total)
+
+		// Get counts by status
+		db.Model(&models.ASN{}).Where("status = ?", "allowed").Count(&stats.Allowed)
+		db.Model(&models.ASN{}).Where("status = ?", "denied").Count(&stats.Denied)
+		db.Model(&models.ASN{}).Where("status = ?", "whitelisted").Count(&stats.Whitelisted)
+
+		c.JSON(http.StatusOK, stats)
+	}
+}
+
+// GetASNFilterStats returns statistics for ASN filtering (RIR and Country counts)
+func GetASNFilterStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get RIR counts
+		var rirStats []struct {
+			RIR   string `json:"rir"`
+			Count int64  `json:"count"`
+		}
+		db.Model(&models.ASN{}).
+			Select("rir, COUNT(*) as count").
+			Where("rir IS NOT NULL AND rir != ''").
+			Group("rir").
+			Order("count DESC").
+			Scan(&rirStats)
+
+		// Get Country counts
+		var countryStats []struct {
+			Country string `json:"country"`
+			Count   int64  `json:"count"`
+		}
+		db.Model(&models.ASN{}).
+			Select("country, COUNT(*) as count").
+			Where("country IS NOT NULL AND country != ''").
+			Group("country").
+			Order("count DESC").
+			Scan(&countryStats)
+
+		// Convert to map format for frontend
+		rirCounts := make(map[string]int64)
+		var totalRIR int64
+		for _, stat := range rirStats {
+			rirCounts[stat.RIR] = stat.Count
+			totalRIR += stat.Count
+		}
+		rirCounts["total"] = totalRIR
+
+		countryCounts := make(map[string]int64)
+		var totalCountry int64
+		for _, stat := range countryStats {
+			countryCounts[stat.Country] = stat.Count
+			totalCountry += stat.Count
+		}
+		countryCounts["total"] = totalCountry
+
+		c.JSON(http.StatusOK, gin.H{
+			"rir_counts":     rirCounts,
+			"country_counts": countryCounts,
+		})
+	}
+}
+
+// UpdateASN updates an existing ASN rule
+func UpdateASN(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		if id == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ASN ID is required"})
+			return
+		}
+
+		var asn models.ASN
+		if err := c.ShouldBindJSON(&asn); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format", "details": err.Error()})
+			return
+		}
+
+		// Validate ASN format
+		if len(asn.ASN) < 3 || !strings.HasPrefix(asn.ASN, "AS") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ASN must start with 'AS' followed by numbers"})
+			return
+		}
+
+		// Validate status
+		statusValidation := validation.ValidateStatus(asn.Status)
+		if !statusValidation.IsValid {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": statusValidation.Errors,
+			})
+			return
+		}
+
+		// Check if ASN exists
+		var existingASN models.ASN
+		if err := db.First(&existingASN, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "ASN not found"})
+			return
+		}
+
+		// Update the ASN
+		if err := db.Model(&existingASN).Updates(asn).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update ASN"})
+			return
+		}
+
+		// Sync to Elasticsearch
+		go func() {
+			if err := services.SyncASNToES(existingASN); err != nil {
+				log.Printf("Failed to sync ASN to Elasticsearch: %v", err)
+			}
+		}()
+
+		c.JSON(http.StatusOK, existingASN)
+	}
+}
+
+// DeleteASN deletes an ASN rule
+func DeleteASN(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		if id == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ASN ID is required"})
+			return
+		}
+
+		// Check if ASN exists
+		var asn models.ASN
+		if err := db.First(&asn, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "ASN not found"})
+			return
+		}
+
+		// Delete the ASN
+		if err := db.Delete(&asn).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete ASN"})
+			return
+		}
+
+		// Delete from Elasticsearch
+		go func() {
+			if err := services.DeleteASNFromES(asn.ID); err != nil {
+				log.Printf("Failed to delete ASN from Elasticsearch: %v", err)
+			}
+		}()
+
+		c.JSON(http.StatusOK, gin.H{"message": "ASN deleted successfully"})
+	}
+}
+
+// RecreateASNIndex recreates the ASN index in Elasticsearch
+func RecreateASNIndex(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Delete existing index
+		es := config.ESClient
+		_, err := es.Indices.Delete([]string{"asns"}, es.Indices.Delete.WithContext(context.Background()))
+		if err != nil {
+			// Index might not exist, which is fine
+			log.Printf("Could not delete existing ASN index: %v", err)
+		}
+
+		// Create new index with mapping
+		mapping := `{
+			"mappings": {
+				"properties": {
+					"id": {"type": "long"},
+					"asn": {"type": "keyword"},
+					"name": {"type": "text"},
+					"status": {"type": "keyword"}
+				}
+			}
+		}`
+
+		_, err = es.Indices.Create(
+			"asns",
+			es.Indices.Create.WithBody(strings.NewReader(mapping)),
+			es.Indices.Create.WithContext(context.Background()),
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ASN index"})
+			return
+		}
+
+		// Sync all ASNs to Elasticsearch
+		var asns []models.ASN
+		if err := db.Find(&asns).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch ASNs"})
+			return
+		}
+
+		for _, asn := range asns {
+			if err := services.SyncASNToES(asn); err != nil {
+				log.Printf("Failed to sync ASN %d to Elasticsearch: %v", asn.ID, err)
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "ASN index recreated successfully",
+			"synced":  len(asns),
+		})
+	}
+}
+
+// ImportSpamhausASNDrop imports ASN data from Spamhaus ASN-DROP list
+func ImportSpamhausASNDrop(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Import ASN data from Spamhaus
+		if err := services.ImportSpamhausASNDrop(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to import Spamhaus ASN-DROP data", "details": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Spamhaus ASN-DROP data imported successfully"})
+	}
+}
+
+// GetSpamhausImportStats returns statistics about the Spamhaus import
+func GetSpamhausImportStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		stats, err := services.GetSpamhausImportStats()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get Spamhaus import stats", "details": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, stats)
+	}
+}
+
+// GetSpamhausImportStatus returns the current status of Spamhaus import
+func GetSpamhausImportStatus(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isRunning := services.IsSpamhausImportRunning()
+
+		// Get next scheduled import time
+		now := time.Now()
+		nextMidnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+
+		c.JSON(http.StatusOK, gin.H{
+			"is_running":              isRunning,
+			"auto_import_enabled":     config.AppConfig.Spamhaus.AutoImportEnabled,
+			"next_scheduled":          nextMidnight.Format("2006-01-02 15:04:05"),
+			"next_scheduled_relative": time.Until(nextMidnight).String(),
+		})
+	}
+}
+
+// ImportStopForumSpamToxicCIDRs imports toxic IP addresses in CIDR format from StopForumSpam
+func ImportStopForumSpamToxicCIDRs(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Check if import is already running
+		if _, running := isImportRunning.Load("stopforumspam"); running {
+			c.JSON(http.StatusConflict, gin.H{"error": "Import already running"})
+			return
+		}
+
+		// Set import as running
+		isImportRunning.Store("stopforumspam", true)
+		defer isImportRunning.Delete("stopforumspam")
+
+		// Create StopForumSpam import service
+		stopForumSpamService := services.NewStopForumSpamImportService(db)
+
+		// Run import in a goroutine to avoid blocking
+		go func() {
+			if err := stopForumSpamService.ImportToxicCIDRs(); err != nil {
+				log.Printf("StopForumSpam toxic CIDR import failed: %v", err)
+			}
+		}()
+
+		c.JSON(http.StatusOK, gin.H{"message": "StopForumSpam toxic CIDR import started"})
+	}
+}
+
+// GetStopForumSpamImportStats returns statistics about StopForumSpam imports
+func GetStopForumSpamImportStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		stopForumSpamService := services.NewStopForumSpamImportService(db)
+
+		stats, err := stopForumSpamService.GetStopForumSpamImportStats()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get StopForumSpam import stats"})
+			return
+		}
+
+		c.JSON(http.StatusOK, stats)
+	}
+}
+
+// GetStopForumSpamImportStatus returns the current status of StopForumSpam imports
+func GetStopForumSpamImportStatus(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		stopForumSpamService := services.NewStopForumSpamImportService(db)
+
+		status, err := stopForumSpamService.GetStopForumSpamImportStatus()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get StopForumSpam import status"})
+			return
+		}
+
+		c.JSON(http.StatusOK, status)
 	}
 }

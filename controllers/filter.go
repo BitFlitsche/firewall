@@ -21,6 +21,7 @@ type FilterRequest struct {
 	Email     string `json:"email" binding:"omitempty,email,max=254"`
 	UserAgent string `json:"user_agent" binding:"omitempty,max=500"`
 	Country   string `json:"country" binding:"omitempty,len=2,alpha"`
+	ASN       string `json:"asn" binding:"omitempty,max=20"`
 	Content   string `json:"content" binding:"omitempty,max=10000"` // optional
 	Username  string `json:"username" binding:"omitempty,max=100"`  // optional
 }
@@ -603,11 +604,12 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 		email, _ := input["email"].(string)
 		userAgent, _ := input["user_agent"].(string)
 		country, _ := input["country"].(string)
+		asn, _ := input["asn"].(string)
 		username, _ := input["username"].(string)
 		content, _ := input["content"].(string)
 
 		// Validate that at least one filter field is provided
-		hasAnyField := ip != "" || email != "" || userAgent != "" || country != "" || username != "" || content != ""
+		hasAnyField := ip != "" || email != "" || userAgent != "" || country != "" || asn != "" || username != "" || content != ""
 
 		// Also check for any other fields that might be custom fields
 		for key, value := range input {
@@ -629,7 +631,7 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 
 		// Generate a cache key based on the normalized filter input
 		cache := services.GetCacheFactory()
-		cacheKey := "filter:" + ip + ":" + normalizedEmail + ":" + userAgent + ":" + country + ":" + username
+		cacheKey := "filter:" + ip + ":" + normalizedEmail + ":" + userAgent + ":" + country + ":" + asn + ":" + username
 
 		// Track cache hit status BEFORE processing
 		cacheHit := false
@@ -767,7 +769,7 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 		defer cancel()
 
 		// Call the service to evaluate filters with normalized email
-		finalResult, err := services.EvaluateFilters(ctx, ip, normalizedEmail, userAgent, country, username)
+		finalResult, err := services.EvaluateFilters(ctx, ip, normalizedEmail, userAgent, country, asn, username)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				c.JSON(http.StatusGatewayTimeout, gin.H{"error": "request timed out"})
@@ -791,6 +793,7 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 				UserAgent: userAgent,
 				Username:  username,
 				Country:   country,
+				ASN:       asn,
 				Content:   content,
 			}
 

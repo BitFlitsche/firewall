@@ -8,6 +8,7 @@ import FilterForm from './components/FilterForm';
 import DashboardStats from './components/DashboardStats';
 import CharsetForm from './components/CharsetForm';
 import UsernameForm from './components/UsernameForm';
+import ASNForm from './components/ASNForm';
 import SystemHealthPage from './pages/SystemHealthPage';
 import MaintenancePage from './pages/MaintenancePage';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
@@ -49,6 +50,7 @@ const navItems = [
   { text: 'IP List', icon: <PublicIcon />, path: '/ip-list' },
   { text: 'User Agent List', icon: <PersonIcon />, path: '/useragent-list' },
   { text: 'Username List', icon: <DnsIcon />, path: '/username-list' },
+  { text: 'ASN List', icon: <DnsIcon />, path: '/asn-list' },
   { text: 'Filter List', icon: <FilterListIcon />, path: '/filter-list' },
 ];
 
@@ -128,6 +130,7 @@ function App() {
           <Route path="/filter-list" element={<FilterForm />} />
           <Route path="/charset-list" element={<CharsetForm />} />
           <Route path="/username-list" element={<UsernameForm />} />
+          <Route path="/asn-list" element={<ASNForm />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
