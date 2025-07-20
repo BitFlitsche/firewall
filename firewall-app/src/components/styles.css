@@ -531,4 +531,167 @@ button:hover {
         padding: 8px 12px;
         font-size: 12px;
     }
+}
+
+/* Cards Layout Styles */
+.cards-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.card-container {
+    transition: all 0.2s ease-in-out;
+}
+
+.card-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.card-ip {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #1976d2;
+}
+
+.card-timestamp {
+    font-size: 0.875rem;
+    color: #666;
+}
+
+.card-basic-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.card-info-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.875rem;
+}
+
+.card-info-icon {
+    color: #666;
+    font-size: 1rem;
+}
+
+.card-expanded-details {
+    border-top: 1px solid #e0e0e0;
+    padding-top: 12px;
+    margin-top: 8px;
+}
+
+.card-detail-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.card-detail-icon {
+    color: #666;
+    margin-top: 2px;
+}
+
+.card-detail-text {
+    word-break: break-all;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.card-actions {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+}
+
+.card-expand-button {
+    transition: transform 0.2s ease-in-out;
+}
+
+.card-expand-button:hover {
+    transform: scale(1.1);
+}
+
+/* Layout Toggle Styles */
+.layout-toggle {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+}
+
+.layout-toggle .MuiToggleButtonGroup-root {
+    background-color: #f5f5f5;
+    border-radius: 8px;
+}
+
+.layout-toggle .MuiToggleButton-root {
+    border: none;
+    padding: 8px 12px;
+    transition: all 0.2s ease-in-out;
+}
+
+.layout-toggle .MuiToggleButton-root:hover {
+    background-color: #e3f2fd;
+}
+
+.layout-toggle .MuiToggleButton-root.Mui-selected {
+    background-color: #1976d2;
+    color: white;
+}
+
+/* Pagination Styles for Cards */
+.cards-pagination {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 16px;
+}
+
+.cards-pagination .MuiPagination-root {
+    display: flex;
+    justify-content: center;
+}
+
+/* Responsive Design for Cards */
+@media (max-width: 768px) {
+    .card-basic-info {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .card-ip {
+        font-size: 1rem;
+    }
+    
+    .card-timestamp {
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .card-basic-info {
+        grid-template-columns: 1fr;
+    }
+    
+    .card-detail-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 } 

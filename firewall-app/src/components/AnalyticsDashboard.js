@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
@@ -16,11 +16,14 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
 import TablePagination from '@mui/material/TablePagination';
+import TrafficLogsCards from './TrafficLogsCards';
+import InfiniteScrollCards from './InfiniteScrollCards';
+import CardsPagination from './CardsPagination';
+import LayoutToggle from './LayoutToggle';
 import './styles.css';
 
 const AnalyticsDashboard = () => {
     const [analytics, setAnalytics] = useState(null);
-    const [relationships, setRelationships] = useState([]);
     const [period, setPeriod] = useState('24h');
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
@@ -42,14 +45,21 @@ const AnalyticsDashboard = () => {
     const [logsOrderBy, setLogsOrderBy] = useState('timestamp');
     const [logsOrder, setLogsOrder] = useState('desc');
     const [logsStats, setLogsStats] = useState({ total: 0, allowed: 0, denied: 0, whitelisted: 0 });
+    const [logsLayout, setLogsLayout] = useState('table'); // 'table' or 'cards'
+    const [logsInfiniteLoading, setLogsInfiniteLoading] = useState(false);
+    const [logsHasMore, setLogsHasMore] = useState(true);
 
     useEffect(() => {
         fetchAnalytics();
-        fetchRelationships();
     }, [period]);
 
     useEffect(() => {
         if (activeTab === 'logs') {
+            // Reset infinite scroll state when filters change
+            if (logsLayout === 'cards') {
+                setLogsHasMore(true);
+                setTrafficLogs([]);
+            }
             fetchTrafficLogs();
             fetchLogsStats();
         }
@@ -66,21 +76,19 @@ const AnalyticsDashboard = () => {
         }
     };
 
-    const fetchRelationships = async () => {
-        try {
-            const response = await axios.get('/api/analytics/relationships?limit=20');
-            setRelationships(response.data.relationships);
-        } catch (error) {
-            console.error('Error fetching relationships:', error);
-        }
-    };
 
-    const fetchTrafficLogs = async () => {
-        setLogsLoading(true);
+
+    const fetchTrafficLogs = async (isInfinite = false) => {
+        if (isInfinite) {
+            setLogsInfiniteLoading(true);
+        } else {
+            setLogsLoading(true);
+        }
         setLogsError(null);
+        
         try {
             const params = {
-                page: logsPage + 1,
+                page: isInfinite ? Math.floor(trafficLogs.length / logsRowsPerPage) + 1 : logsPage + 1,
                 limit: logsRowsPerPage,
                 orderBy: logsOrderBy,
                 order: logsOrder,
@@ -111,17 +119,32 @@ const AnalyticsDashboard = () => {
             const response = await axios.get('/api/analytics/logs', { params });
             
             if (response.data && response.data.logs) {
-                setTrafficLogs(response.data.logs);
+                if (isInfinite) {
+                    // Append to existing logs for infinite scroll
+                    setTrafficLogs(prev => [...prev, ...response.data.logs]);
+                    setLogsHasMore(response.data.logs.length === logsRowsPerPage);
+                } else {
+                    // Replace logs for regular pagination
+                    setTrafficLogs(response.data.logs);
+                    setLogsHasMore(response.data.logs.length === logsRowsPerPage);
+                }
                 setLogsTotal(response.data.total || 0);
             } else {
-                setTrafficLogs([]);
+                if (!isInfinite) {
+                    setTrafficLogs([]);
+                }
+                setLogsHasMore(false);
                 setLogsTotal(0);
             }
         } catch (error) {
             console.error('Error fetching traffic logs:', error);
             setLogsError('Failed to fetch traffic logs');
         } finally {
-            setLogsLoading(false);
+            if (isInfinite) {
+                setLogsInfiniteLoading(false);
+            } else {
+                setLogsLoading(false);
+            }
         }
     };
 
@@ -174,6 +197,12 @@ const AnalyticsDashboard = () => {
         setLogsFilterResult('');
     };
 
+    const handleLoadMoreLogs = () => {
+        if (!logsInfiniteLoading && logsHasMore) {
+            fetchTrafficLogs(true);
+        }
+    };
+
     if (loading) {
         return (
             <div className="analytics-dashboard">
@@ -203,12 +232,7 @@ const AnalyticsDashboard = () => {
                 >
                     Overview
                 </button>
-                <button 
-                    className={activeTab === 'relationships' ? 'active' : ''} 
-                    onClick={() => setActiveTab('relationships')}
-                >
-                    Data Relationships
-                </button>
+
                 <button 
                     className={activeTab === 'logs' ? 'active' : ''} 
                     onClick={() => setActiveTab('logs')}
@@ -300,33 +324,7 @@ const AnalyticsDashboard = () => {
                 </div>
             )}
 
-            {activeTab === 'relationships' && (
-                <div className="relationships-tab">
-                    <h3>Top Data Relationships</h3>
-                    <div className="relationships-list">
-                        {relationships.map((rel, index) => (
-                            <div key={index} className="relationship-item">
-                                <div className="relationship-header">
-                                    <div className="relationship-type">{rel.relationship_type.replace('_', ' ')}</div>
-                                    <div className="relationship-frequency">{rel.frequency} occurrences</div>
-                                </div>
-                                <div className="relationship-data">
-                                    {rel.ip_address && <span className="data-item">IP: {rel.ip_address}</span>}
-                                    {rel.email && <span className="data-item">Email: {rel.email}</span>}
-                                    {rel.user_agent && <span className="data-item">User Agent: {rel.user_agent.substring(0, 50)}...</span>}
-                                    {rel.username && <span className="data-item">Username: {rel.username}</span>}
-                                    {rel.country && <span className="data-item">Country: {rel.country}</span>}
-                                    {rel.charset && <span className="data-item">Charset: {rel.charset}</span>}
-                                </div>
-                                <div className="relationship-timeline">
-                                    <span>First seen: {new Date(rel.first_seen).toLocaleString()}</span>
-                                    <span>Last seen: {new Date(rel.last_seen).toLocaleString()}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+
 
             {activeTab === 'logs' && (
                 <div className="logs-tab">
@@ -401,11 +399,32 @@ const AnalyticsDashboard = () => {
                         </Button>
                     </Box>
 
+                    <LayoutToggle 
+                        layout={logsLayout} 
+                        onLayoutChange={setLogsLayout} 
+                    />
+
                     {logsLoading ? (
                         <div>Loading traffic logs...</div>
                     ) : logsError ? (
                         <div className="error">{logsError}</div>
+                    ) : logsLayout === 'cards' ? (
+                        // Cards Layout with Infinite Scroll
+                        <Box>
+                            <InfiniteScrollCards
+                                trafficLogs={trafficLogs}
+                                loading={logsInfiniteLoading}
+                                error={logsError}
+                                total={logsTotal}
+                                hasMore={logsHasMore}
+                                onLoadMore={handleLoadMoreLogs}
+                                onSort={handleLogsSort}
+                                orderBy={logsOrderBy}
+                                order={logsOrder}
+                            />
+                        </Box>
                     ) : (
+                        // Table Layout
                         <TableContainer component={Paper}>
                             <TablePagination
                                 component="div"
