@@ -1,11 +1,12 @@
 package controllers
 
 import (
-	"firewall/models"
-	"firewall/services"
 	"net/http"
 	"strconv"
 	"time"
+
+	"firewall/models"
+	"firewall/services"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -141,6 +142,18 @@ func GetTrafficLogs(db *gorm.DB) gin.HandlerFunc {
 		}
 		if email := c.Query("email"); email != "" {
 			filters["email"] = email
+		}
+		if userAgent := c.Query("user_agent"); userAgent != "" {
+			filters["user_agent"] = userAgent
+		}
+		if username := c.Query("username"); username != "" {
+			filters["username"] = username
+		}
+		if country := c.Query("country"); country != "" {
+			filters["country"] = country
+		}
+		if asn := c.Query("asn"); asn != "" {
+			filters["asn"] = asn
 		}
 		if result := c.Query("final_result"); result != "" {
 			filters["final_result"] = result
@@ -288,6 +301,28 @@ func GetTrafficStats(db *gorm.DB) gin.HandlerFunc {
 			"period": period,
 			"stats":  stats,
 		})
+	}
+}
+
+// GetTrafficLogStats returns statistics for traffic logs (for dropdown counts)
+func GetTrafficLogStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var stats struct {
+			Total       int64 `json:"total"`
+			Allowed     int64 `json:"allowed"`
+			Denied      int64 `json:"denied"`
+			Whitelisted int64 `json:"whitelisted"`
+		}
+
+		// Get total count
+		db.Model(&models.TrafficLog{}).Count(&stats.Total)
+
+		// Get counts by final_result
+		db.Model(&models.TrafficLog{}).Where("final_result = ?", "allowed").Count(&stats.Allowed)
+		db.Model(&models.TrafficLog{}).Where("final_result = ?", "denied").Count(&stats.Denied)
+		db.Model(&models.TrafficLog{}).Where("final_result = ?", "whitelisted").Count(&stats.Whitelisted)
+
+		c.JSON(http.StatusOK, stats)
 	}
 }
 

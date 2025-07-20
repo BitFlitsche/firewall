@@ -416,4 +416,119 @@ button:hover {
     padding: 50px;
     font-size: 18px;
     color: #666;
+}
+
+/* Traffic Logs Table Styles */
+.logs-tab {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.logs-tab h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.5rem;
+}
+
+/* Use standard list-table styling for traffic logs */
+.logs-tab .list-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.logs-tab .list-table th,
+.logs-tab .list-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.logs-tab .list-table th {
+    background-color: white !important;
+    font-weight: normal !important;
+}
+
+.logs-tab .list-table tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Override Material-UI table header styling */
+.logs-tab .MuiTableHead-root .MuiTableCell-head {
+    background-color: white !important;
+    font-weight: normal !important;
+    color: #333 !important;
+}
+
+/* Override Material-UI table cell styling */
+.logs-tab .MuiTableCell-root {
+    padding: 12px !important;
+    text-align: left !important;
+    border-bottom: 1px solid #ddd !important;
+}
+
+/* Override Material-UI table row hover */
+.logs-tab .MuiTableBody-root .MuiTableRow-root:hover {
+    background-color: #f5f5f5 !important;
+}
+
+/* Result status styles */
+.logs-tab .result {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.logs-tab .result.allowed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.logs-tab .result.denied {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.logs-tab .result.whitelisted {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+/* Cache hit/miss indicators */
+.logs-tab .cache-hit {
+    background: #28a745;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.logs-tab .cache-miss {
+    background: #6c757d;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+/* Responsive table */
+@media (max-width: 768px) {
+    .logs-tab .list-table {
+        min-width: 100%;
+    }
+    
+    .logs-tab .list-table th,
+    .logs-tab .list-table td {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
 } 

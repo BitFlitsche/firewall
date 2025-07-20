@@ -197,6 +197,18 @@ func (tls *TrafficLoggingService) GetTrafficLogs(limit int, offset int, filters 
 	if filters["email"] != "" {
 		query = query.Where("email LIKE ?", "%"+filters["email"]+"%")
 	}
+	if filters["user_agent"] != "" {
+		query = query.Where("user_agent LIKE ?", "%"+filters["user_agent"]+"%")
+	}
+	if filters["username"] != "" {
+		query = query.Where("username LIKE ?", "%"+filters["username"]+"%")
+	}
+	if filters["country"] != "" {
+		query = query.Where("country LIKE ?", "%"+filters["country"]+"%")
+	}
+	if filters["asn"] != "" {
+		query = query.Where("asn LIKE ?", "%"+filters["asn"]+"%")
+	}
 	if filters["final_result"] != "" {
 		query = query.Where("final_result = ?", filters["final_result"])
 	}

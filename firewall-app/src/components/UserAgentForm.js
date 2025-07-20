@@ -202,7 +202,7 @@ const UserAgentTable = memo(({
                         rowsPerPage={rowsPerPage}
                         onRowsPerPageChange={onRowsPerPageChange}
                         rowsPerPageOptions={[10, 25, 50, 100]}
-                        labelRowsPerPage="Einträge pro Seite:"
+                        labelRowsPerPage="Entries per page:"
                     />
                     <Table>
                         <TableHead>
@@ -267,7 +267,7 @@ const UserAgentTable = memo(({
                         rowsPerPage={rowsPerPage}
                         onRowsPerPageChange={onRowsPerPageChange}
                         rowsPerPageOptions={[10, 25, 50, 100]}
-                        labelRowsPerPage="Einträge pro Seite:"
+                        labelRowsPerPage="Entries per page:"
                     />
                 </TableContainer>
             </Paper>

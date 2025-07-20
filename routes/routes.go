@@ -174,6 +174,7 @@ func SetupRoutes(r *gin.Engine) {
 	api.GET("/analytics/relationships", controllers.GetDataRelationships(db))
 	api.GET("/analytics/aggregations", controllers.GetAnalyticsAggregations(db))
 	api.GET("/analytics/logs", controllers.GetTrafficLogs(db))
+	api.GET("/analytics/logs/stats", controllers.GetTrafficLogStats(db))
 	api.GET("/analytics/top-data/:type", controllers.GetTopData(db))
 	api.GET("/analytics/insights", controllers.GetRelationshipInsights(db))
 	api.GET("/analytics/stats", controllers.GetTrafficStats(db))

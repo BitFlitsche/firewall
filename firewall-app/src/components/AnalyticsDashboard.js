@@ -1,5 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import Box from '@mui/material/Box';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
+import TableSortLabel from '@mui/material/TableSortLabel';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import Button from '@mui/material/Button';
+import TablePagination from '@mui/material/TablePagination';
 import './styles.css';
 
 const AnalyticsDashboard = () => {
@@ -9,10 +25,35 @@ const AnalyticsDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
 
+    // Traffic logs table state
+    const [trafficLogs, setTrafficLogs] = useState([]);
+    const [logsLoading, setLogsLoading] = useState(false);
+    const [logsError, setLogsError] = useState(null);
+    const [logsPage, setLogsPage] = useState(0);
+    const [logsRowsPerPage, setLogsRowsPerPage] = useState(25);
+    const [logsTotal, setLogsTotal] = useState(0);
+    const [logsFilterIP, setLogsFilterIP] = useState('');
+    const [logsFilterEmail, setLogsFilterEmail] = useState('');
+    const [logsFilterUserAgent, setLogsFilterUserAgent] = useState('');
+    const [logsFilterUsername, setLogsFilterUsername] = useState('');
+    const [logsFilterCountry, setLogsFilterCountry] = useState('');
+    const [logsFilterASN, setLogsFilterASN] = useState('');
+    const [logsFilterResult, setLogsFilterResult] = useState('');
+    const [logsOrderBy, setLogsOrderBy] = useState('timestamp');
+    const [logsOrder, setLogsOrder] = useState('desc');
+    const [logsStats, setLogsStats] = useState({ total: 0, allowed: 0, denied: 0, whitelisted: 0 });
+
     useEffect(() => {
         fetchAnalytics();
         fetchRelationships();
     }, [period]);
+
+    useEffect(() => {
+        if (activeTab === 'logs') {
+            fetchTrafficLogs();
+            fetchLogsStats();
+        }
+    }, [activeTab, logsPage, logsRowsPerPage, logsFilterIP, logsFilterEmail, logsFilterUserAgent, logsFilterUsername, logsFilterCountry, logsFilterASN, logsFilterResult, logsOrderBy, logsOrder]);
 
     const fetchAnalytics = async () => {
         try {
@@ -34,6 +75,65 @@ const AnalyticsDashboard = () => {
         }
     };
 
+    const fetchTrafficLogs = async () => {
+        setLogsLoading(true);
+        setLogsError(null);
+        try {
+            const params = {
+                page: logsPage + 1,
+                limit: logsRowsPerPage,
+                orderBy: logsOrderBy,
+                order: logsOrder,
+            };
+
+            if (logsFilterIP) {
+                params.ip_address = logsFilterIP;
+            }
+            if (logsFilterEmail) {
+                params.email = logsFilterEmail;
+            }
+            if (logsFilterUserAgent) {
+                params.user_agent = logsFilterUserAgent;
+            }
+            if (logsFilterUsername) {
+                params.username = logsFilterUsername;
+            }
+            if (logsFilterCountry) {
+                params.country = logsFilterCountry;
+            }
+            if (logsFilterASN) {
+                params.asn = logsFilterASN;
+            }
+            if (logsFilterResult) {
+                params.final_result = logsFilterResult;
+            }
+
+            const response = await axios.get('/api/analytics/logs', { params });
+            
+            if (response.data && response.data.logs) {
+                setTrafficLogs(response.data.logs);
+                setLogsTotal(response.data.total || 0);
+            } else {
+                setTrafficLogs([]);
+                setLogsTotal(0);
+            }
+        } catch (error) {
+            console.error('Error fetching traffic logs:', error);
+            setLogsError('Failed to fetch traffic logs');
+        } finally {
+            setLogsLoading(false);
+        }
+    };
+
+    const fetchLogsStats = async () => {
+        try {
+            const response = await axios.get('/api/analytics/logs/stats');
+            setLogsStats(response.data);
+        } catch (error) {
+            console.error('Error fetching traffic log stats:', error);
+        }
+    };
+
     const formatNumber = (num) => {
         return new Intl.NumberFormat().format(num);
     };
@@ -44,6 +144,34 @@ const AnalyticsDashboard = () => {
 
     const formatTime = (ms) => {
         return ms.toFixed(2) + 'ms';
+    };
+
+    const handleLogsSort = (field) => {
+        if (logsOrderBy === field) {
+            setLogsOrder(logsOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setLogsOrderBy(field);
+            setLogsOrder('asc');
+        }
+    };
+
+    const handleLogsChangePage = (event, newPage) => {
+        setLogsPage(newPage);
+    };
+
+    const handleLogsChangeRowsPerPage = (event) => {
+        setLogsRowsPerPage(parseInt(event.target.value, 10));
+        setLogsPage(0);
+    };
+
+    const resetLogsFilters = () => {
+        setLogsFilterIP('');
+        setLogsFilterEmail('');
+        setLogsFilterUserAgent('');
+        setLogsFilterUsername('');
+        setLogsFilterCountry('');
+        setLogsFilterASN('');
+        setLogsFilterResult('');
     };
 
     if (loading) {
@@ -202,28 +330,179 @@ const AnalyticsDashboard = () => {
 
             {activeTab === 'logs' && (
                 <div className="logs-tab">
-                    <h3>Recent Traffic Logs</h3>
-                    <div className="logs-list">
-                        {analytics?.logs?.map((log, index) => (
-                            <div key={index} className="log-item">
-                                <div className="log-header">
-                                    <span className={`result ${log.final_result}`}>{log.final_result}</span>
-                                    <span className="timestamp">{new Date(log.timestamp).toLocaleString()}</span>
-                                    <span className="response-time">{log.response_time_ms}ms</span>
-                                    {log.cache_hit && <span className="cache-hit">Cache Hit</span>}
-                                </div>
-                                <div className="log-data">
-                                    {log.ip_address && <span>IP: {log.ip_address}</span>}
-                                    {log.email && <span>Email: {log.email}</span>}
-                                    {log.user_agent && <span>User Agent: {log.user_agent.substring(0, 50)}...</span>}
-                                    {log.username && <span>Username: {log.username}</span>}
-                                    {log.country && <span>Country: {log.country}</span>}
-                                    {log.asn && <span>ASN: {log.asn}</span>}
-                                    {log.charset && <span>Charset: {log.charset}</span>}
-                                </div>
+                    <h3>Traffic Logs</h3>
+                    
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <TextField
+                            label="IP Address Filter"
+                            value={logsFilterIP}
+                            onChange={(e) => setLogsFilterIP(e.target.value)}
+                            size="small"
+                            sx={{ minWidth: 200 }}
+                        />
+                        <TextField
+                            label="Email Filter"
+                            value={logsFilterEmail}
+                            onChange={(e) => setLogsFilterEmail(e.target.value)}
+                            size="small"
+                            sx={{ minWidth: 200 }}
+                        />
+                        <TextField
+                            label="User Agent Filter"
+                            value={logsFilterUserAgent}
+                            onChange={(e) => setLogsFilterUserAgent(e.target.value)}
+                            size="small"
+                            sx={{ minWidth: 200 }}
+                        />
+                        <TextField
+                            label="Username Filter"
+                            value={logsFilterUsername}
+                            onChange={(e) => setLogsFilterUsername(e.target.value)}
+                            size="small"
+                            sx={{ minWidth: 150 }}
+                        />
+                        <TextField
+                            label="Country Filter"
+                            value={logsFilterCountry}
+                            onChange={(e) => setLogsFilterCountry(e.target.value)}
+                            size="small"
+                            sx={{ minWidth: 120 }}
+                        />
+                        <TextField
+                            label="ASN Filter"
+                            value={logsFilterASN}
+                            onChange={(e) => setLogsFilterASN(e.target.value)}
+                            size="small"
+                            sx={{ minWidth: 120 }}
+                        />
+                        <FormControl size="small" sx={{ minWidth: 140 }}>
+                            <InputLabel shrink>Result</InputLabel>
+                            <Select
+                                value={logsFilterResult}
+                                label="Result"
+                                onChange={(e) => setLogsFilterResult(e.target.value)}
+                                displayEmpty
+                                renderValue={(selected) => {
+                                    if (!selected) return `All (${logsStats.total})`;
+                                    if (selected === 'allowed') return `Allowed (${logsStats.allowed})`;
+                                    if (selected === 'denied') return `Denied (${logsStats.denied})`;
+                                    if (selected === 'whitelisted') return `Whitelisted (${logsStats.whitelisted})`;
+                                    return selected;
+                                }}
+                            >
+                                <MenuItem value="">All ({logsStats.total})</MenuItem>
+                                <MenuItem value="allowed">Allowed ({logsStats.allowed})</MenuItem>
+                                <MenuItem value="denied">Denied ({logsStats.denied})</MenuItem>
+                                <MenuItem value="whitelisted">Whitelisted ({logsStats.whitelisted})</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <Button variant="outlined" size="small" onClick={resetLogsFilters}>
+                            Reset
+                        </Button>
+                    </Box>
+
+                    {logsLoading ? (
+                        <div>Loading traffic logs...</div>
+                    ) : logsError ? (
+                        <div className="error">{logsError}</div>
+                    ) : (
+                        <div className="list-section">
+                            <div className="list-view">
+                                <TableContainer component={Paper}>
+                                    <TablePagination
+                                        component="div"
+                                        count={logsTotal}
+                                        page={logsPage}
+                                        onPageChange={handleLogsChangePage}
+                                        rowsPerPage={logsRowsPerPage}
+                                        onRowsPerPageChange={handleLogsChangeRowsPerPage}
+                                        rowsPerPageOptions={[10, 25, 50, 100]}
+                                        labelRowsPerPage="Entries per page:"
+                                    />
+                                    <Table className="list-table">
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell>
+                                                    <TableSortLabel
+                                                        active={logsOrderBy === 'timestamp'}
+                                                        direction={logsOrderBy === 'timestamp' ? logsOrder : 'asc'}
+                                                        onClick={() => handleLogsSort('timestamp')}
+                                                    >
+                                                        Timestamp
+                                                    </TableSortLabel>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <TableSortLabel
+                                                        active={logsOrderBy === 'final_result'}
+                                                        direction={logsOrderBy === 'final_result' ? logsOrder : 'asc'}
+                                                        onClick={() => handleLogsSort('final_result')}
+                                                    >
+                                                        Result
+                                                    </TableSortLabel>
+                                                </TableCell>
+                                                <TableCell>IP Address</TableCell>
+                                                <TableCell>Email</TableCell>
+                                                <TableCell>User Agent</TableCell>
+                                                <TableCell>Username</TableCell>
+                                                <TableCell>Country</TableCell>
+                                                <TableCell>ASN</TableCell>
+                                                <TableCell>Response Time</TableCell>
+                                                <TableCell>Cache Hit</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {trafficLogs.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={10} align="center">No traffic logs found</TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                trafficLogs.map((log, index) => (
+                                                    <TableRow key={log.id || index}>
+                                                        <TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell>
+                                                        <TableCell>
+                                                            <span className={`result ${log.final_result}`}>
+                                                                {log.final_result}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell>{log.ip_address || '-'}</TableCell>
+                                                        <TableCell>{log.email || '-'}</TableCell>
+                                                        <TableCell>
+                                                            {log.user_agent ? 
+                                                                (log.user_agent.length > 50 ? 
+                                                                    log.user_agent.substring(0, 50) + '...' : 
+                                                                    log.user_agent) : 
+                                                                '-'
+                                                            }
+                                                        </TableCell>
+                                                        <TableCell>{log.username || '-'}</TableCell>
+                                                        <TableCell>{log.country || '-'}</TableCell>
+                                                        <TableCell>{log.asn || '-'}</TableCell>
+                                                        <TableCell>{log.response_time_ms}ms</TableCell>
+                                                        <TableCell>
+                                                            {log.cache_hit ? 
+                                                                <span className="cache-hit">Yes</span> : 
+                                                                <span className="cache-miss">No</span>
+                                                            }
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                    <TablePagination
+                                        component="div"
+                                        count={logsTotal}
+                                        page={logsPage}
+                                        onPageChange={handleLogsChangePage}
+                                        rowsPerPage={logsRowsPerPage}
+                                        onRowsPerPageChange={handleLogsChangeRowsPerPage}
+                                        rowsPerPageOptions={[10, 25, 50, 100]}
+                                        labelRowsPerPage="Entries per page:"
+                                    />
+                                </TableContainer>
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

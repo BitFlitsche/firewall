@@ -263,7 +263,7 @@ const ASNTable = React.memo(({
                         rowsPerPage={rowsPerPage}
                         onRowsPerPageChange={onChangeRowsPerPage}
                         rowsPerPageOptions={[10, 25, 50, 100]}
-                        labelRowsPerPage="Einträge pro Seite:"
+                        labelRowsPerPage="Entries per page:"
                     />
                     <Table>
                         <TableHead>
@@ -386,7 +386,7 @@ const ASNTable = React.memo(({
                         rowsPerPage={rowsPerPage}
                         onRowsPerPageChange={onChangeRowsPerPage}
                         rowsPerPageOptions={[10, 25, 50, 100]}
-                        labelRowsPerPage="Einträge pro Seite:"
+                        labelRowsPerPage="Entries per page:"
                     />
                 </TableContainer>
             </Paper>

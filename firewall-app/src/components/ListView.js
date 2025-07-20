@@ -221,7 +221,7 @@ const ListView = ({ endpoint, title, refresh }) => {
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           rowsPerPageOptions={[10, 25, 50, 100]}
-          labelRowsPerPage="Einträge pro Seite:"
+          labelRowsPerPage="Entries per page:"
         />
         <Table className="list-table">
           <TableHead>
@@ -281,7 +281,7 @@ const ListView = ({ endpoint, title, refresh }) => {
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           rowsPerPageOptions={[10, 25, 50, 100]}
-          labelRowsPerPage="Einträge pro Seite:"
+          labelRowsPerPage="Entries per page:"
         />
       </TableContainer>
     </Box>
