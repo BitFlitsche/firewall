@@ -218,6 +218,7 @@ const AnalyticsDashboard = () => {
                                     {log.user_agent && <span>User Agent: {log.user_agent.substring(0, 50)}...</span>}
                                     {log.username && <span>Username: {log.username}</span>}
                                     {log.country && <span>Country: {log.country}</span>}
+                                    {log.asn && <span>ASN: {log.asn}</span>}
                                     {log.charset && <span>Charset: {log.charset}</span>}
                                 </div>
                             </div>

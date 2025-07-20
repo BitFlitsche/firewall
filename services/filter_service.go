@@ -26,37 +26,101 @@ type FilterResult struct {
 
 const NumFilters = 6
 
-// EvaluateFilters runs all filters concurrently and returns the final result
-func EvaluateFilters(ctx context.Context, ip, email, userAgent, country, asn, username string) (FilterResult, error) {
-	// Channel to collect filter results
-	results := make(chan FilterResult, 6)
+// FilterResultWithResolvedData includes the resolved country and ASN values
+type FilterResultWithResolvedData struct {
+	FilterResult
+	ResolvedCountry string
+	ResolvedASN     string
+}
 
+// EvaluateFilters runs only the necessary filters concurrently and returns the final result with resolved data
+func EvaluateFilters(ctx context.Context, ip, email, userAgent, country, asn, username string) (FilterResultWithResolvedData, error) {
 	// Auto-geolocate IP if country is empty and IP is provided
+	resolvedCountry := country
 	if country == "" && ip != "" {
-		country = GetCountryFromIPWithFallback(ip)
+		resolvedCountry = GetCountryFromIPWithFallback(ip)
 		// Log the geolocation result for debugging
-		if country != "" {
-			fmt.Printf("Auto-geolocated IP %s to country: %s\n", ip, country)
+		if resolvedCountry != "" {
+			fmt.Printf("Auto-geolocated IP %s to country: %s\n", ip, resolvedCountry)
 		}
 	}
 
-	// Start filters concurrently
-	go filterIP(ctx, ip, results)
-	go filterEmail(ctx, email, results)
-	go filterUserAgent(ctx, userAgent, results)
-	go filterCountry(ctx, country, results)
-	go filterUsername(ctx, username, results)
-	go filterASN(ctx, ip, asn, results)
+	// Auto-resolve ASN if not provided but IP is available
+	resolvedASN := asn
+	if asn == "" && ip != "" {
+		resolvedASN = GetASNFromIPWithFallback(ip)
+	}
+
+	// Determine which filters to run based on non-empty fields
+	var filtersToRun int
+	var results chan FilterResult
+
+	// Count how many filters we need to run
+	if ip != "" {
+		filtersToRun++
+	}
+	if email != "" {
+		filtersToRun++
+	}
+	if userAgent != "" {
+		filtersToRun++
+	}
+	if country != "" {
+		filtersToRun++
+	}
+	if username != "" {
+		filtersToRun++
+	}
+	if asn != "" || ip != "" { // ASN filter runs if either ASN is provided or IP is provided (for auto-ASN lookup)
+		filtersToRun++
+	}
+
+	// If no filters to run, return allowed
+	if filtersToRun == 0 {
+		return FilterResultWithResolvedData{
+			FilterResult:    FilterResult{Result: "allowed", Reason: "no filter fields provided"},
+			ResolvedCountry: resolvedCountry,
+			ResolvedASN:     resolvedASN,
+		}, nil
+	}
+
+	// Create channel with exact size needed
+	results = make(chan FilterResult, filtersToRun)
+
+	// Start only the necessary filters concurrently
+	if ip != "" {
+		go filterIP(ctx, ip, results)
+	}
+	if email != "" {
+		go filterEmail(ctx, email, results)
+	}
+	if userAgent != "" {
+		go filterUserAgent(ctx, userAgent, results)
+	}
+	if resolvedCountry != "" {
+		go filterCountry(ctx, resolvedCountry, results)
+	}
+	if username != "" {
+		go filterUsername(ctx, username, results)
+	}
+	if asn != "" || ip != "" {
+		go filterASN(ctx, ip, resolvedASN, results)
+	}
 
 	// Collect and evaluate the results
-	return collectResults(ctx, results)
+	filterResult, err := collectResults(ctx, results, filtersToRun)
+	return FilterResultWithResolvedData{
+		FilterResult:    filterResult,
+		ResolvedCountry: resolvedCountry,
+		ResolvedASN:     resolvedASN,
+	}, err
 }
 
-// collectResults processes all filter results
-func collectResults(ctx context.Context, result chan FilterResult) (FilterResult, error) {
+// collectResults processes filter results with dynamic count
+func collectResults(ctx context.Context, result chan FilterResult, filterCount int) (FilterResult, error) {
 	output := FilterResult{Result: "allowed"}
 
-	for i := 0; i < NumFilters; i++ {
+	for i := 0; i < filterCount; i++ {
 		select {
 		case res := <-result:
 			if res.Result == "whitelisted" {
@@ -191,6 +255,12 @@ func filterIP(ctx context.Context, ip string, result chan FilterResult) {
 
 // filterEmail runs the email filter
 func filterEmail(ctx context.Context, email string, result chan FilterResult) {
+	// Handle empty email addresses - treat as allowed
+	if email == "" {
+		result <- FilterResult{Result: "allowed", Reason: "empty email address", Field: "email", Value: email}
+		return
+	}
+
 	es := config.ESClient
 
 	// First try exact match
@@ -301,6 +371,12 @@ func filterEmail(ctx context.Context, email string, result chan FilterResult) {
 
 // filterUserAgent runs the user agent filter
 func filterUserAgent(ctx context.Context, userAgent string, result chan FilterResult) {
+	// Handle empty user agent strings - treat as allowed
+	if userAgent == "" {
+		result <- FilterResult{Result: "allowed", Reason: "empty user agent", Field: "user_agent", Value: userAgent}
+		return
+	}
+
 	es := config.ESClient
 
 	// First try exact match
@@ -411,6 +487,12 @@ func filterUserAgent(ctx context.Context, userAgent string, result chan FilterRe
 
 // filterCountry runs the country filter
 func filterCountry(ctx context.Context, country string, result chan FilterResult) {
+	// Handle empty country codes - treat as allowed
+	if country == "" {
+		result <- FilterResult{Result: "allowed", Reason: "empty country code", Field: "country", Value: country}
+		return
+	}
+
 	es := config.ESClient
 	query := `{
 		"query": {
@@ -462,6 +544,12 @@ func filterCountry(ctx context.Context, country string, result chan FilterResult
 
 // filterUsername runs the username filter
 func filterUsername(ctx context.Context, username string, result chan FilterResult) {
+	// Handle empty usernames - treat as allowed
+	if username == "" {
+		result <- FilterResult{Result: "allowed", Reason: "empty username", Field: "username", Value: username}
+		return
+	}
+
 	es := config.ESClient
 
 	// First try exact match
@@ -580,10 +668,9 @@ func filterASN(ctx context.Context, ip, asn string, result chan FilterResult) {
 			return
 		}
 	} else if ip != "" {
-		// Get ASN from IP using geolocation
-		asn = GetASNFromIPWithFallback(ip)
+		// ASN should already be resolved in the main function
+		// If we still don't have an ASN, just allow
 		if asn == "" {
-			// If we can't get ASN, just allow
 			result <- FilterResult{Result: "allowed", Reason: "no asn found", Field: "asn", Value: ip}
 			return
 		}

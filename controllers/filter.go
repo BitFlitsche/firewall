@@ -648,7 +648,8 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 					Email:     email,
 					UserAgent: userAgent,
 					Username:  username,
-					Country:   country,
+					Country:   country, // For cache hits, we don't have resolved values, so use original
+					ASN:       asn,     // For cache hits, we don't have resolved values, so use original
 					Content:   content,
 				}
 
@@ -779,21 +780,21 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Cache the result for 5 minutes
-		cache.Set(cacheKey, finalResult, 5*time.Minute)
+		// Cache the result for 5 minutes (cache the FilterResult part only)
+		cache.Set(cacheKey, finalResult.FilterResult, 5*time.Minute)
 
 		// Log the traffic asynchronously
 		go func() {
 			trafficLogging := services.NewTrafficLoggingService(db)
 
-			// Convert to traffic logging format
+			// Convert to traffic logging format with resolved values
 			trafficReq := services.FilterRequest{
 				IPAddress: ip,
 				Email:     email,
 				UserAgent: userAgent,
 				Username:  username,
-				Country:   country,
-				ASN:       asn,
+				Country:   finalResult.ResolvedCountry, // Use resolved country
+				ASN:       finalResult.ResolvedASN,     // Use resolved ASN
 				Content:   content,
 			}
 
@@ -821,6 +822,6 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 			trafficLogging.LogFilterRequest(trafficReq, trafficResult, metadata)
 		}()
 
-		c.JSON(http.StatusOK, finalResult)
+		c.JSON(http.StatusOK, finalResult.FilterResult)
 	}
 }
