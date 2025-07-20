@@ -5,12 +5,17 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/oschwald/geoip2-golang"
+	"github.com/patrickmn/go-cache"
 )
 
 var geoipReader *geoip2.Reader
 var asnReader *geoip2.Reader
+
+// Cache for geolocation lookups
+var geoCache *cache.Cache
 
 // InitGeoIP initializes the MaxMind GeoIP database reader
 func InitGeoIP() error {
@@ -28,6 +33,10 @@ func InitGeoIP() error {
 	}
 
 	geoipReader = reader
+
+	// Initialize cache with 1 hour default expiration and cleanup every 10 minutes
+	geoCache = cache.New(1*time.Hour, 10*time.Minute)
+
 	return nil
 }
 
@@ -125,12 +134,32 @@ func GetCountryFromIP(ipStr string) (string, error) {
 
 // GetCountryFromIPWithFallback resolves an IP to country code, returns empty string on error
 func GetCountryFromIPWithFallback(ipStr string) string {
+	// Check cache first
+	if geoCache != nil {
+		if cached, found := geoCache.Get("country:" + ipStr); found {
+			fmt.Printf("Country cache HIT for IP %s: %s\n", ipStr, cached.(string))
+			return cached.(string)
+		}
+		fmt.Printf("Country cache MISS for IP %s\n", ipStr)
+	}
+
 	countryCode, err := GetCountryFromIP(ipStr)
 	if err != nil {
 		// Log the error but don't fail the request
 		fmt.Printf("Geolocation failed for IP %s: %v\n", ipStr, err)
+		// Cache the empty result to avoid repeated lookups for invalid IPs
+		if geoCache != nil {
+			geoCache.Set("country:"+ipStr, "", cache.DefaultExpiration)
+		}
 		return ""
 	}
+
+	// Cache the result
+	if geoCache != nil {
+		geoCache.Set("country:"+ipStr, countryCode, cache.DefaultExpiration)
+		fmt.Printf("Country cached for IP %s: %s\n", ipStr, countryCode)
+	}
+
 	return countryCode
 }
 
@@ -168,11 +197,61 @@ func GetASNFromIP(ipStr string) (string, error) {
 
 // GetASNFromIPWithFallback resolves an IP to ASN, returns empty string on error
 func GetASNFromIPWithFallback(ipStr string) string {
+	// Check cache first
+	if geoCache != nil {
+		if cached, found := geoCache.Get("asn:" + ipStr); found {
+			fmt.Printf("ASN cache HIT for IP %s: %s\n", ipStr, cached.(string))
+			return cached.(string)
+		}
+		fmt.Printf("ASN cache MISS for IP %s\n", ipStr)
+	}
+
 	asn, err := GetASNFromIP(ipStr)
 	if err != nil {
 		// Log the error but don't fail the request
 		fmt.Printf("ASN lookup failed for IP %s: %v\n", ipStr, err)
+		// Cache the empty result to avoid repeated lookups for invalid IPs
+		if geoCache != nil {
+			geoCache.Set("asn:"+ipStr, "", cache.DefaultExpiration)
+		}
 		return ""
 	}
+
+	// Cache the result
+	if geoCache != nil {
+		geoCache.Set("asn:"+ipStr, asn, cache.DefaultExpiration)
+		fmt.Printf("ASN cached for IP %s: %s\n", ipStr, asn)
+	}
+
 	return asn
+}
+
+// GetGeoCacheStats returns statistics about the geolocation cache
+func GetGeoCacheStats() map[string]interface{} {
+	if geoCache == nil {
+		return map[string]interface{}{
+			"enabled": false,
+			"error":   "Cache not initialized",
+		}
+	}
+
+	return map[string]interface{}{
+		"enabled":     true,
+		"items_count": geoCache.ItemCount(),
+	}
+}
+
+// ClearGeoCache clears all cached geolocation data
+func ClearGeoCache() {
+	if geoCache != nil {
+		geoCache.Flush()
+	}
+}
+
+// GetGeoCacheSize returns the number of cached items
+func GetGeoCacheSize() int {
+	if geoCache == nil {
+		return 0
+	}
+	return geoCache.ItemCount()
 }

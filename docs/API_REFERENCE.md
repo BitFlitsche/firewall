@@ -30,7 +30,7 @@ Evaluates a request against all firewall rules and returns the result.
 **Request Body:**
 ```json
 {
-  "ip": "string",           // IP address (optional)
+  "ip": "string",           // IP address (required) - sufficient for filtering
   "email": "string",        // Email address (optional)
   "userAgent": "string",    // User agent string (optional)
   "country": "string",      // Country code (optional, auto-geolocated if empty)
@@ -345,3 +345,71 @@ For API issues:
 - [Validation](VALIDATION.md) - Input validation rules
 - [Conflict Detection](CONFLICT_DETECTION.md) - IP/CIDR conflict detection
 - [Health Check](HEALTH_CHECK.md) - Monitoring and health checks 
+
+## Analytics Endpoints
+
+### GET /api/analytics/logs
+
+Returns paginated traffic logs with filtering and sorting capabilities.
+
+**Query Parameters:**
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Number of items per page (default: 50)
+- `orderBy` (optional): Field to sort by (default: timestamp)
+- `order` (optional): Sort direction - "asc" or "desc" (default: desc)
+- `ip_address` (optional): Filter by IP address
+- `email` (optional): Filter by email address
+- `user_agent` (optional): Filter by user agent
+- `username` (optional): Filter by username
+- `country` (optional): Filter by country
+- `asn` (optional): Filter by ASN
+- `final_result` (optional): Filter by result (allowed, denied, whitelisted)
+
+**Sortable Fields:**
+- `timestamp` - Request timestamp
+- `final_result` - Filter result
+- `ip_address` - IP address
+- `email` - Email address
+- `user_agent` - User agent string
+- `username` - Username
+- `country` - Country code
+- `asn` - ASN number
+- `response_time_ms` - Response time in milliseconds
+- `cache_hit` - Cache hit status
+
+**Response:**
+```json
+{
+  "logs": [
+    {
+      "id": 1,
+      "timestamp": "2024-01-01T12:00:00Z",
+      "final_result": "denied",
+      "ip_address": "192.168.1.1",
+      "email": "test@example.com",
+      "user_agent": "Mozilla/5.0...",
+      "username": "user123",
+      "country": "US",
+      "asn": "AS7922",
+      "response_time_ms": 150,
+      "cache_hit": false
+    }
+  ],
+  "total": 1000,
+  "page": 1,
+  "limit": 50,
+  "total_pages": 20
+}
+```
+
+**Example Usage:**
+```bash
+# Sort by IP address ascending
+curl "http://localhost:8081/api/analytics/logs?orderBy=ip_address&order=asc"
+
+# Sort by response time descending
+curl "http://localhost:8081/api/analytics/logs?orderBy=response_time_ms&order=desc"
+
+# Filter and sort
+curl "http://localhost:8081/api/analytics/logs?final_result=denied&orderBy=timestamp&order=desc"
+``` 

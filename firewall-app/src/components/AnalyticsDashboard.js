@@ -406,102 +406,162 @@ const AnalyticsDashboard = () => {
                     ) : logsError ? (
                         <div className="error">{logsError}</div>
                     ) : (
-                        <div className="list-section">
-                            <div className="list-view">
-                                <TableContainer component={Paper}>
-                                    <TablePagination
-                                        component="div"
-                                        count={logsTotal}
-                                        page={logsPage}
-                                        onPageChange={handleLogsChangePage}
-                                        rowsPerPage={logsRowsPerPage}
-                                        onRowsPerPageChange={handleLogsChangeRowsPerPage}
-                                        rowsPerPageOptions={[10, 25, 50, 100]}
-                                        labelRowsPerPage="Entries per page:"
-                                    />
-                                    <Table className="list-table">
-                                        <TableHead>
-                                            <TableRow>
-                                                <TableCell>
-                                                    <TableSortLabel
-                                                        active={logsOrderBy === 'timestamp'}
-                                                        direction={logsOrderBy === 'timestamp' ? logsOrder : 'asc'}
-                                                        onClick={() => handleLogsSort('timestamp')}
-                                                    >
-                                                        Timestamp
-                                                    </TableSortLabel>
+                        <TableContainer component={Paper}>
+                            <TablePagination
+                                component="div"
+                                count={logsTotal}
+                                page={logsPage}
+                                onPageChange={handleLogsChangePage}
+                                rowsPerPage={logsRowsPerPage}
+                                onRowsPerPageChange={handleLogsChangeRowsPerPage}
+                                rowsPerPageOptions={[10, 25, 50, 100]}
+                                labelRowsPerPage="Entries per page:"
+                            />
+                            <Table className="list-table">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell sx={{ width: '140px' }}>
+                                            <TableSortLabel
+                                                active={logsOrderBy === 'timestamp'}
+                                                direction={logsOrderBy === 'timestamp' ? logsOrder : 'asc'}
+                                                onClick={() => handleLogsSort('timestamp')}
+                                            >
+                                                Timestamp
+                                            </TableSortLabel>
+                                        </TableCell>
+                                        <TableCell sx={{ width: '100px' }}>
+                                            <TableSortLabel
+                                                active={logsOrderBy === 'final_result'}
+                                                direction={logsOrderBy === 'final_result' ? logsOrder : 'asc'}
+                                                onClick={() => handleLogsSort('final_result')}
+                                            >
+                                                Result
+                                            </TableSortLabel>
+                                        </TableCell>
+                                        <TableCell sx={{ width: '140px' }}>
+                                            <TableSortLabel
+                                                active={logsOrderBy === 'ip_address'}
+                                                direction={logsOrderBy === 'ip_address' ? logsOrder : 'asc'}
+                                                onClick={() => handleLogsSort('ip_address')}
+                                            >
+                                                IP Address
+                                            </TableSortLabel>
+                                        </TableCell>
+                                        <TableCell sx={{ width: '200px' }}>
+                                            <TableSortLabel
+                                                active={logsOrderBy === 'email'}
+                                                direction={logsOrderBy === 'email' ? logsOrder : 'asc'}
+                                                onClick={() => handleLogsSort('email')}
+                                            >
+                                                Email
+                                            </TableSortLabel>
+                                        </TableCell>
+                                        <TableCell sx={{ width: '250px' }}>
+                                            <TableSortLabel
+                                                active={logsOrderBy === 'user_agent'}
+                                                direction={logsOrderBy === 'user_agent' ? logsOrder : 'asc'}
+                                                onClick={() => handleLogsSort('user_agent')}
+                                            >
+                                                User Agent
+                                            </TableSortLabel>
+                                        </TableCell>
+                                        <TableCell sx={{ width: '120px' }}>
+                                            <TableSortLabel
+                                                active={logsOrderBy === 'username'}
+                                                direction={logsOrderBy === 'username' ? logsOrder : 'asc'}
+                                                onClick={() => handleLogsSort('username')}
+                                            >
+                                                Username
+                                            </TableSortLabel>
+                                        </TableCell>
+                                        <TableCell sx={{ width: '80px' }}>
+                                            <TableSortLabel
+                                                active={logsOrderBy === 'country'}
+                                                direction={logsOrderBy === 'country' ? logsOrder : 'asc'}
+                                                onClick={() => handleLogsSort('country')}
+                                            >
+                                                Country
+                                            </TableSortLabel>
+                                        </TableCell>
+                                        <TableCell sx={{ width: '100px' }}>
+                                            <TableSortLabel
+                                                active={logsOrderBy === 'asn'}
+                                                direction={logsOrderBy === 'asn' ? logsOrder : 'asc'}
+                                                onClick={() => handleLogsSort('asn')}
+                                            >
+                                                ASN
+                                            </TableSortLabel>
+                                        </TableCell>
+                                        <TableCell sx={{ width: '120px' }}>
+                                            <TableSortLabel
+                                                active={logsOrderBy === 'response_time_ms'}
+                                                direction={logsOrderBy === 'response_time_ms' ? logsOrder : 'asc'}
+                                                onClick={() => handleLogsSort('response_time_ms')}
+                                            >
+                                                Response Time
+                                            </TableSortLabel>
+                                        </TableCell>
+                                        <TableCell sx={{ width: '100px' }}>
+                                            <TableSortLabel
+                                                active={logsOrderBy === 'cache_hit'}
+                                                direction={logsOrderBy === 'cache_hit' ? logsOrder : 'asc'}
+                                                onClick={() => handleLogsSort('cache_hit')}
+                                            >
+                                                Cache Hit
+                                            </TableSortLabel>
+                                        </TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {trafficLogs.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={10} align="center">No traffic logs found</TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        trafficLogs.map((log, index) => (
+                                            <TableRow key={log.id || index}>
+                                                <TableCell sx={{ width: '140px' }}>{new Date(log.timestamp).toLocaleString()}</TableCell>
+                                                <TableCell sx={{ width: '100px' }}>
+                                                    <span className={`result ${log.final_result}`}>
+                                                        {log.final_result}
+                                                    </span>
                                                 </TableCell>
-                                                <TableCell>
-                                                    <TableSortLabel
-                                                        active={logsOrderBy === 'final_result'}
-                                                        direction={logsOrderBy === 'final_result' ? logsOrder : 'asc'}
-                                                        onClick={() => handleLogsSort('final_result')}
-                                                    >
-                                                        Result
-                                                    </TableSortLabel>
+                                                <TableCell sx={{ width: '140px' }}>{log.ip_address || '-'}</TableCell>
+                                                <TableCell sx={{ width: '200px' }}>{log.email || '-'}</TableCell>
+                                                <TableCell sx={{ width: '250px' }}>
+                                                    {log.user_agent ? 
+                                                        (log.user_agent.length > 50 ? 
+                                                            log.user_agent.substring(0, 50) + '...' : 
+                                                            log.user_agent) : 
+                                                        '-'
+                                                    }
                                                 </TableCell>
-                                                <TableCell>IP Address</TableCell>
-                                                <TableCell>Email</TableCell>
-                                                <TableCell>User Agent</TableCell>
-                                                <TableCell>Username</TableCell>
-                                                <TableCell>Country</TableCell>
-                                                <TableCell>ASN</TableCell>
-                                                <TableCell>Response Time</TableCell>
-                                                <TableCell>Cache Hit</TableCell>
+                                                <TableCell sx={{ width: '120px' }}>{log.username || '-'}</TableCell>
+                                                <TableCell sx={{ width: '80px' }}>{log.country || '-'}</TableCell>
+                                                <TableCell sx={{ width: '100px' }}>{log.asn || '-'}</TableCell>
+                                                <TableCell sx={{ width: '120px' }}>{log.response_time_ms}ms</TableCell>
+                                                <TableCell sx={{ width: '100px' }}>
+                                                    {log.cache_hit ? 
+                                                        <span className="cache-hit">Yes</span> : 
+                                                        <span className="cache-miss">No</span>
+                                                    }
+                                                </TableCell>
                                             </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {trafficLogs.length === 0 ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={10} align="center">No traffic logs found</TableCell>
-                                                </TableRow>
-                                            ) : (
-                                                trafficLogs.map((log, index) => (
-                                                    <TableRow key={log.id || index}>
-                                                        <TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell>
-                                                        <TableCell>
-                                                            <span className={`result ${log.final_result}`}>
-                                                                {log.final_result}
-                                                            </span>
-                                                        </TableCell>
-                                                        <TableCell>{log.ip_address || '-'}</TableCell>
-                                                        <TableCell>{log.email || '-'}</TableCell>
-                                                        <TableCell>
-                                                            {log.user_agent ? 
-                                                                (log.user_agent.length > 50 ? 
-                                                                    log.user_agent.substring(0, 50) + '...' : 
-                                                                    log.user_agent) : 
-                                                                '-'
-                                                            }
-                                                        </TableCell>
-                                                        <TableCell>{log.username || '-'}</TableCell>
-                                                        <TableCell>{log.country || '-'}</TableCell>
-                                                        <TableCell>{log.asn || '-'}</TableCell>
-                                                        <TableCell>{log.response_time_ms}ms</TableCell>
-                                                        <TableCell>
-                                                            {log.cache_hit ? 
-                                                                <span className="cache-hit">Yes</span> : 
-                                                                <span className="cache-miss">No</span>
-                                                            }
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                    <TablePagination
-                                        component="div"
-                                        count={logsTotal}
-                                        page={logsPage}
-                                        onPageChange={handleLogsChangePage}
-                                        rowsPerPage={logsRowsPerPage}
-                                        onRowsPerPageChange={handleLogsChangeRowsPerPage}
-                                        rowsPerPageOptions={[10, 25, 50, 100]}
-                                        labelRowsPerPage="Entries per page:"
-                                    />
-                                </TableContainer>
-                            </div>
-                        </div>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                            <TablePagination
+                                component="div"
+                                count={logsTotal}
+                                page={logsPage}
+                                onPageChange={handleLogsChangePage}
+                                rowsPerPage={logsRowsPerPage}
+                                onRowsPerPageChange={handleLogsChangeRowsPerPage}
+                                rowsPerPageOptions={[10, 25, 50, 100]}
+                                labelRowsPerPage="Entries per page:"
+                            />
+                        </TableContainer>
                     )}
                 </div>
             )}

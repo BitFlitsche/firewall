@@ -134,6 +134,30 @@ func GetTrafficLogs(db *gorm.DB) gin.HandlerFunc {
 		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 		offset := (page - 1) * limit
+		orderBy := c.DefaultQuery("orderBy", "timestamp")
+		order := c.DefaultQuery("order", "desc")
+
+		// Validate orderBy field
+		validOrderByFields := map[string]bool{
+			"timestamp":        true,
+			"final_result":     true,
+			"ip_address":       true,
+			"email":            true,
+			"user_agent":       true,
+			"username":         true,
+			"country":          true,
+			"asn":              true,
+			"response_time_ms": true,
+			"cache_hit":        true,
+		}
+		if !validOrderByFields[orderBy] {
+			orderBy = "timestamp"
+		}
+
+		// Validate order direction
+		if order != "asc" && order != "desc" {
+			order = "desc"
+		}
 
 		// Build filters
 		filters := make(map[string]string)
@@ -164,6 +188,10 @@ func GetTrafficLogs(db *gorm.DB) gin.HandlerFunc {
 		if endDate := c.Query("end_date"); endDate != "" {
 			filters["end_date"] = endDate
 		}
+
+		// Add sorting parameters to filters
+		filters["orderBy"] = orderBy
+		filters["order"] = order
 
 		// Get traffic logs using service
 		trafficLogging := services.NewTrafficLoggingService(db)

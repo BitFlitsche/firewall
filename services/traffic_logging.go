@@ -225,9 +225,38 @@ func (tls *TrafficLoggingService) GetTrafficLogs(limit int, offset int, filters 
 		return nil, 0, err
 	}
 
-	// Get paginated results
+	// Apply sorting
+	orderBy := filters["orderBy"]
+	order := filters["order"]
+	if orderBy == "" {
+		orderBy = "timestamp"
+	}
+	if order == "" {
+		order = "desc"
+	}
+
+	// Map frontend field names to database column names
+	orderByMap := map[string]string{
+		"timestamp":        "timestamp",
+		"final_result":     "final_result",
+		"ip_address":       "ip_address",
+		"email":            "email",
+		"user_agent":       "user_agent",
+		"username":         "username",
+		"country":          "country",
+		"asn":              "asn",
+		"response_time_ms": "response_time_ms",
+		"cache_hit":        "cache_hit",
+	}
+
+	dbOrderBy := orderByMap[orderBy]
+	if dbOrderBy == "" {
+		dbOrderBy = "timestamp"
+	}
+
+	// Get paginated results with sorting
 	var logs []models.TrafficLog
-	if err := query.Order("timestamp DESC").Limit(limit).Offset(offset).Find(&logs).Error; err != nil {
+	if err := query.Order(dbOrderBy + " " + order).Limit(limit).Offset(offset).Find(&logs).Error; err != nil {
 		return nil, 0, err
 	}
 

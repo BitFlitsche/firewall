@@ -108,6 +108,7 @@ func SystemStatsHandler(db *gorm.DB) gin.HandlerFunc {
 				return stats
 			}(),
 			"cache_type": services.GetCacheFactory().GetCacheType(),
+			"geo_cache":  services.GetGeoCacheStats(),
 		})
 	}
 }

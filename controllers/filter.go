@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"firewall/services"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -17,7 +18,7 @@ import (
 
 // FilterRequest defines the structure for the incoming JSON request
 type FilterRequest struct {
-	IP        string `json:"ip" binding:"omitempty,max=45"`
+	IP        string `json:"ip" binding:"required,max=45"`
 	Email     string `json:"email" binding:"omitempty,email,max=254"`
 	UserAgent string `json:"user_agent" binding:"omitempty,max=500"`
 	Country   string `json:"country" binding:"omitempty,len=2,alpha"`
@@ -587,6 +588,12 @@ func getUnicodeScript(r rune) string {
 	return "Other"
 }
 
+// isValidIP checks if the given string is a valid IP address.
+func isValidIP(ip string) bool {
+	ipAddress := net.ParseIP(ip)
+	return ipAddress != nil
+}
+
 // FilterRequestHandler prüft jetzt auch Charset-Regeln
 func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -608,23 +615,19 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 		username, _ := input["username"].(string)
 		content, _ := input["content"].(string)
 
-		// Validate that at least one filter field is provided
-		hasAnyField := ip != "" || email != "" || userAgent != "" || country != "" || asn != "" || username != "" || content != ""
-
-		// Also check for any other fields that might be custom fields
-		for key, value := range input {
-			if key != "ip" && key != "email" && key != "user_agent" && key != "country" && key != "username" && key != "content" {
-				if strValue, ok := value.(string); ok && strValue != "" {
-					hasAnyField = true
-					break
-				}
-			}
-		}
-
-		if !hasAnyField {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "At least one filter field must be provided"})
+		// Validate that IP address is provided (now mandatory)
+		if ip == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "IP address is required"})
 			return
 		}
+
+		// Validate IP address format
+		if !isValidIP(ip) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid IP address format"})
+			return
+		}
+
+		// IP address is sufficient for filtering - no additional fields required
 
 		// Normalize email address (remove dots for Gmail addresses)
 		normalizedEmail := normalizeEmail(email)
@@ -642,14 +645,24 @@ func FilterRequestHandler(db *gorm.DB) gin.HandlerFunc {
 			go func() {
 				trafficLogging := services.NewTrafficLoggingService(db)
 
-				// Convert to traffic logging format
+				// Resolve country and ASN from IP for cache hits
+				resolvedCountry := country
+				resolvedASN := asn
+				if country == "" && ip != "" {
+					resolvedCountry = services.GetCountryFromIPWithFallback(ip)
+				}
+				if asn == "" && ip != "" {
+					resolvedASN = services.GetASNFromIPWithFallback(ip)
+				}
+
+				// Convert to traffic logging format with resolved values
 				trafficReq := services.FilterRequest{
 					IPAddress: ip,
 					Email:     email,
 					UserAgent: userAgent,
 					Username:  username,
-					Country:   country, // For cache hits, we don't have resolved values, so use original
-					ASN:       asn,     // For cache hits, we don't have resolved values, so use original
+					Country:   resolvedCountry, // Use resolved country
+					ASN:       resolvedASN,     // Use resolved ASN
 					Content:   content,
 				}
 

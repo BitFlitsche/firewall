@@ -39,6 +39,13 @@ const FilterForm = () => {
         e.preventDefault();
         setMessage('');
         setError('');
+        
+        // Validate that IP address is provided
+        if (!filterData.ip.trim()) {
+            setError('IP address is required');
+            return;
+        }
+        
         try {
             const response = await axios.post('/api/filter', filterData);
             setMessage(`Filter applied! Result: ${JSON.stringify(response.data)}`);
@@ -63,11 +70,13 @@ const FilterForm = () => {
                 <Typography variant="h5" gutterBottom>Apply Filter</Typography>
                 <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <TextField
-                        label="IP Address"
+                        label="IP Address *"
                         value={filterData.ip}
                         onChange={handleInputChange('ip')}
                         placeholder="Enter IP address to filter"
                         fullWidth
+                        required
+                        helperText="IP address is required for all filter requests"
                     />
                     <TextField
                         label="Email Address"

@@ -214,6 +214,39 @@ If the GeoLite2 database is missing or corrupted:
 - **Memory Usage**: ~50MB for database in memory
 - **Concurrent Requests**: Thread-safe implementation
 
+## Performance
+
+### Caching
+The system implements intelligent caching for geolocation lookups:
+
+- **Country Lookups**: Cached for 1 hour with automatic cleanup
+- **ASN Lookups**: Cached for 1 hour with automatic cleanup
+- **Cache Keys**: Prefixed with "country:" or "asn:" to avoid conflicts
+- **Cache Misses**: Empty results are also cached to avoid repeated lookups for invalid IPs
+- **Memory Management**: Automatic cleanup every 10 minutes removes expired entries
+
+### Cache Statistics
+Cache performance can be monitored via the health check endpoint:
+
+```bash
+curl http://localhost:8081/api/health
+```
+
+Response includes:
+```json
+{
+  "geo_cache": {
+    "enabled": true,
+    "items_count": 1250
+  }
+}
+```
+
+### Cache Management
+- **Automatic Expiration**: 1 hour TTL for all geolocation data
+- **LRU Eviction**: Least recently used items are removed when memory is low
+- **Manual Clear**: Cache can be cleared programmatically if needed
+
 ## Integration with Existing Features
 
 ### Country Rules
