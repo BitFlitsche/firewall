@@ -9,6 +9,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import axios from '../axiosConfig';
 import { useLocation } from 'react-router-dom';
 
@@ -230,60 +231,51 @@ const CustomFieldsManager = memo(({
         }
     };
 
+    const [showCharsetFields, setShowCharsetFields] = useState(false);
+
     return (
-        <Accordion sx={{ 
-            mt: 3,
-            backgroundColor: '#f8f9fa',
-            border: '1px solid #e3e6ea',
-            borderRadius: 1,
-            '&:before': {
-                display: 'none',
-            },
-            '&.Mui-expanded': {
-                margin: '24px 0',
-            }
-        }}>
-            <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="charset-fields-content"
-                id="charset-fields-header"
-                sx={{
-                    backgroundColor: 'transparent',
-                    borderColor: '#ccc',
-                    color: '#666',
+        <Box sx={{ mb: 3 }}>
+            <Button
+                variant="outlined"
+                onClick={() => setShowCharsetFields(!showCharsetFields)}
+                startIcon={showCharsetFields ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                sx={{ 
+                    mb: 1,
+                    borderColor: showCharsetFields ? '#1976d2' : '#ccc',
+                    color: showCharsetFields ? '#1976d2' : '#666',
+                    backgroundColor: showCharsetFields ? '#e3f2fd' : 'transparent',
                     '&:hover': {
-                        backgroundColor: '#f5f5f5',
+                        backgroundColor: showCharsetFields ? '#bbdefb' : '#f5f5f5',
                         borderColor: '#1976d2',
                         color: '#1976d2'
                     },
-                    '&.Mui-expanded': {
-                        backgroundColor: '#e3f2fd',
-                        borderColor: '#1976d2',
-                        color: '#1976d2',
-                        fontWeight: 600,
-                    }
+                    fontWeight: showCharsetFields ? 600 : 400,
+                    transition: 'all 0.2s ease'
                 }}
             >
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    🔧 Charset Filter Fields
-                </Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ 
-                backgroundColor: '#f8f9fa', 
-                p: 3,
-                border: '1px solid #e0e0e0',
-                borderRadius: 2,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-            }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, color: '#666' }}>
-                    Select which fields should be checked for charset detection in the /filter endpoint.
-                </Typography>
+                🔧 Charset Filter Fields
+            </Button>
+            {showCharsetFields && (
+                <Paper 
+                    elevation={2} 
+                    sx={{ 
+                        p: 2, 
+                        backgroundColor: '#f8f9fa',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: 2,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        animation: 'slideDown 0.3s ease-out'
+                    }}
+                >
+                    <Typography variant="subtitle1" gutterBottom sx={{ color: '#1976d2', fontWeight: 600 }}>
+                        Select which fields should be checked for charset detection in the /filter endpoint.
+                    </Typography>
 
                 {/* Standard Fields */}
                 <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: '#1976d2' }}>
                     Standard Fields
                 </Typography>
-                <Box sx={{ mb: 3 }}>
+                <Box sx={{ mb: 3, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                     {standardFields.map(field => (
                         <FormControlLabel
                             key={field.name}
@@ -325,13 +317,7 @@ const CustomFieldsManager = memo(({
                                 </Box>
                             }
                             sx={{
-                                margin: '4px 0',
-                                '&:hover': {
-                                    backgroundColor: '#f5f5f5',
-                                    borderRadius: 1,
-                                    padding: '4px',
-                                    margin: '0 -4px'
-                                }
+                                
                             }}
                         />
                     ))}
@@ -442,12 +428,13 @@ const CustomFieldsManager = memo(({
                         </Button>
                     </DialogActions>
                 </Dialog>
-            </AccordionDetails>
-        </Accordion>
-    );
-}, (prevProps, nextProps) => {
-    return JSON.stringify(prevProps) === JSON.stringify(nextProps);
-});
+                </Paper>
+                )}
+            </Box>
+        );
+    }, (prevProps, nextProps) => {
+        return JSON.stringify(prevProps) === JSON.stringify(nextProps);
+    });
 
 const CharsetForm = () => {
     const [charset, setCharset] = useState('');
@@ -675,9 +662,29 @@ const CharsetForm = () => {
 
 
     return (
-        <Box sx={{ maxWidth: 700, mx: 'auto', mt: 4 }}>
-            <Paper sx={{ p: 3 }} elevation={3}>
-                <Typography variant="h5" gutterBottom>Charset Management</Typography>
+        <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4, p: 2 }}>
+            <Typography variant="h4" gutterBottom>
+                Charset Management
+            </Typography>
+
+            {/* Charset Filter Fields Section */}
+            <CustomFieldsManager
+                standardFields={standardFields}
+                customFields={customFields}
+                onStandardFieldToggle={handleStandardFieldToggle}
+                onCustomFieldAdd={handleCustomFieldAdd}
+                onCustomFieldDelete={handleCustomFieldDelete}
+            />
+
+            {/* Form Section */}
+            <Paper sx={{ p: 3, mb: 3 }} elevation={3}>
+                <Typography variant="h5" gutterBottom>
+                    Add or Modify Charset
+                </Typography>
+                
+                {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
+                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
                 <CharsetFormComponent 
                     onSubmit={handleSubmit}
                     charset={charset}
@@ -687,45 +694,33 @@ const CharsetForm = () => {
                     editId={editId}
                     setEditId={setEditId}
                 />
-                {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
-                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                
-                {/* Custom Fields Management */}
-                <CustomFieldsManager
-                    standardFields={standardFields}
-                    customFields={customFields}
-                    onStandardFieldToggle={handleStandardFieldToggle}
-                    onCustomFieldAdd={handleCustomFieldAdd}
-                    onCustomFieldDelete={handleCustomFieldDelete}
-                />
-                
-                {/* Filter controls outside of table component */}
-                <Box sx={{ mt: 4, mb: 2 }}>
-                    <FilterControls 
-                        searchValue={searchValue}
-                        onSearchChange={handleSearchChange}
-                        filterStatus={filterStatus}
-                        onStatusChange={handleStatusChange}
-                        globalStatusCounts={globalStatusCounts}
-                        onReset={handleReset}
-                    />
-                </Box>
-                
-                <CharsetTable 
-                    charsets={charsets}
-                    loading={loading}
-                    total={total}
-                    page={page}
-                    rowsPerPage={rowsPerPage}
-                    orderBy={orderBy}
-                    order={order}
-                    onSort={handleSort}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                />
             </Paper>
+
+            {/* Filter Controls */}
+            <FilterControls 
+                searchValue={searchValue}
+                onSearchChange={handleSearchChange}
+                filterStatus={filterStatus}
+                onStatusChange={handleStatusChange}
+                globalStatusCounts={globalStatusCounts}
+                onReset={handleReset}
+            />
+
+            {/* Table */}
+            <CharsetTable 
+                charsets={charsets}
+                loading={loading}
+                total={total}
+                page={page}
+                rowsPerPage={rowsPerPage}
+                orderBy={orderBy}
+                order={order}
+                onSort={handleSort}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+            />
         </Box>
     );
 };

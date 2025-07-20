@@ -256,7 +256,7 @@ const IPTable = React.memo(({
                         <TableBody>
                             {ips.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center">No IP addresses</TableCell>
+                                    <TableCell colSpan={6} align="center">No IP addresses</TableCell>
                                 </TableRow>
                             ) : (
                                 ips.map((ipItem) => (
@@ -728,53 +728,84 @@ const IPForm = () => {
 
     return (
         <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4, p: 2 }}>
-            <Paper sx={{ p: 3 }} elevation={3}>
-                <Typography variant="h5" gutterBottom>IP Address Management</Typography>
+            <Typography variant="h4" gutterBottom>
+                IP Address Management
+            </Typography>
+
+            {/* StopForumSpam Import Buttons */}
+            <Box sx={{ mb: 3 }}>
+                <Button 
+                    variant="contained" 
+                    color="primary" 
+                    onClick={handleStopForumSpamImport}
+                    sx={{ mr: 2 }}
+                >
+                    Import stopforumspam Toxic IP Addresses (CIDR)
+                </Button>
+                <Button 
+                    variant="outlined" 
+                    onClick={handleStopForumSpamStats}
+                    sx={{ mr: 2 }}
+                >
+                    View StopForumSpam Stats
+                </Button>
+                <Button 
+                    variant="outlined" 
+                    onClick={handleStopForumSpamStatus}
+                >
+                    Check Import Status
+                </Button>
+            </Box>
+
+            {/* Form Section */}
+            <Paper sx={{ p: 3, mb: 3 }} elevation={3}>
+                <Typography variant="h5" gutterBottom>
+                    Add or Modify IP/CIDR
+                </Typography>
                 
-                {/* StopForumSpam Import Buttons */}
-                <Box sx={{ mb: 3 }}>
-                    <Button 
-                        variant="contained" 
-                        color="primary" 
-                        onClick={handleStopForumSpamImport}
-                        sx={{ mr: 2 }}
-                    >
-                        Import stopforumspam Toxic IP Addresses (CIDR)
-                    </Button>
-                    <Button 
-                        variant="outlined" 
-                        onClick={handleStopForumSpamStats}
-                        sx={{ mr: 2 }}
-                    >
-                        View StopForumSpam Stats
-                    </Button>
-                    <Button 
-                        variant="outlined" 
-                        onClick={handleStopForumSpamStatus}
-                    >
-                        Check Import Status
-                    </Button>
-                </Box>
-                
-                <IPFormComponent {...formProps} />
                 {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+                <IPFormComponent {...formProps} />
                 <ConflictTable 
                     conflicts={conflicts} 
                     open={conflicts.length > 0} 
                     onDeleteAllConflicts={handleDeleteAllConflicts}
                     isDeleting={isDeletingConflicts}
                 />
-                
-                {/* Filter controls outside of table component */}
-                <Box sx={{ mt: 4, mb: 2 }}>
-                    <FilterControls {...filterProps} />
-                </Box>
-                
-
-                
-                <IPTable {...tableProps} />
             </Paper>
+
+            {/* Filter Controls */}
+            <FilterControls
+                searchValue={searchValue}
+                filterStatus={filterStatus}
+                filterType={filterType}
+                globalStatusCounts={globalStatusCounts}
+                globalTypeCounts={globalTypeCounts}
+                onSearchChange={handleSearchChange}
+                onStatusChange={handleStatusChange}
+                onTypeChange={handleTypeChange}
+                onReset={handleReset}
+                onSearchFocus={handleSearchFocus}
+                onSearchBlur={handleSearchBlur}
+                searchInputRef={searchInputRef}
+            />
+
+            {/* Table */}
+            <IPTable
+                ips={ips}
+                loading={loading}
+                orderBy={orderBy}
+                order={order}
+                page={page}
+                rowsPerPage={rowsPerPage}
+                total={total}
+                onSort={handleSort}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onChangePage={handleChangePage}
+                onChangeRowsPerPage={handleChangeRowsPerPage}
+            />
         </Box>
     );
 };

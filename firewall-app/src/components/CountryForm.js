@@ -505,20 +505,28 @@ const CountryForm = () => {
     }), [countries, loading, orderBy, order, page, rowsPerPage, total, handleSort, handleEdit, handleDelete, handleChangePage, handleChangeRowsPerPage]);
 
     return (
-        <Box sx={{ maxWidth: 700, mx: 'auto', mt: 4 }}>
-            <Paper sx={{ p: 3 }} elevation={3}>
-                <Typography variant="h5" gutterBottom>Country Management</Typography>
-                <CountryFormComponent {...formProps} />
+        <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4, p: 2 }}>
+            <Typography variant="h4" gutterBottom>
+                Country Management
+            </Typography>
+
+            {/* Form Section */}
+            <Paper sx={{ p: 3, mb: 3 }} elevation={3}>
+                <Typography variant="h5" gutterBottom>
+                    Add or Modify Country
+                </Typography>
+                
                 {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                
-                {/* Filter controls outside of table component */}
-                <Box sx={{ mt: 4, mb: 2 }}>
-                    <FilterControls {...filterProps} />
-                </Box>
-                
-                <CountryTable {...tableProps} />
+
+                <CountryFormComponent {...formProps} />
             </Paper>
+
+            {/* Filter Controls */}
+            <FilterControls {...filterProps} />
+
+            {/* Table */}
+            <CountryTable {...tableProps} />
         </Box>
     );
 };

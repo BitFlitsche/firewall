@@ -512,9 +512,20 @@ const UsernameForm = () => {
     }), [usernames, loading, orderBy, order, page, rowsPerPage, total, handleSort, handleEdit, handleDelete, handleChangePage, handleChangeRowsPerPage]);
 
     return (
-        <Box sx={{ maxWidth: 700, mx: 'auto', mt: 4 }}>
-            <Paper sx={{ p: 3 }} elevation={3}>
-                <Typography variant="h5" gutterBottom>Username Management</Typography>
+        <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4, p: 2 }}>
+            <Typography variant="h4" gutterBottom>
+                Username Management
+            </Typography>
+
+            {/* Form Section */}
+            <Paper sx={{ p: 3, mb: 3 }} elevation={3}>
+                <Typography variant="h5" gutterBottom>
+                    Add or Modify Username
+                </Typography>
+                
+                {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
+                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
                 <UsernameFormComponent 
                     onSubmit={handleSubmit}
                     username={username}
@@ -526,36 +537,33 @@ const UsernameForm = () => {
                     editId={editId}
                     setEditId={setEditId}
                 />
-                {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
-                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                
-                {/* Filter controls outside of table component */}
-                <Box sx={{ mt: 4, mb: 2 }}>
-                    <FilterControls 
-                        searchValue={searchValue}
-                        onSearchChange={handleSearchChange}
-                        filterStatus={filterStatus}
-                        onStatusChange={handleStatusChange}
-                        globalStatusCounts={globalStatusCounts}
-                        onReset={handleReset}
-                    />
-                </Box>
-                
-                <UsernameTable 
-                    usernames={usernames}
-                    loading={loading}
-                    total={total}
-                    page={page}
-                    rowsPerPage={rowsPerPage}
-                    orderBy={orderBy}
-                    order={order}
-                    onSort={handleSort}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                />
             </Paper>
+
+            {/* Filter Controls */}
+            <FilterControls 
+                searchValue={searchValue}
+                onSearchChange={handleSearchChange}
+                filterStatus={filterStatus}
+                onStatusChange={handleStatusChange}
+                globalStatusCounts={globalStatusCounts}
+                onReset={handleReset}
+            />
+
+            {/* Table */}
+            <UsernameTable 
+                usernames={usernames}
+                loading={loading}
+                total={total}
+                page={page}
+                rowsPerPage={rowsPerPage}
+                orderBy={orderBy}
+                order={order}
+                onSort={handleSort}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+            />
         </Box>
     );
 };
