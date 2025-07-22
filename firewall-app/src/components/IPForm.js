@@ -27,6 +27,7 @@ import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Tooltip from '@mui/material/Tooltip';
 import { useLocation } from 'react-router-dom';
+import InfiniteScrollIPTable from './InfiniteScrollIPTable';
 
 
 // Memoized Form Component
@@ -309,15 +310,15 @@ const IPForm = () => {
     const [ips, setIps] = useState([]);
     const [editId, setEditId] = useState(null);
     
-    // Filtering and pagination state
+    // Filtering and infinite scroll state
     const [loading, setLoading] = useState(true);
+    const [infiniteLoading, setInfiniteLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('');
     const [filterType, setFilterType] = useState('');
     const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
     const [globalStatusCounts, setGlobalStatusCounts] = useState({ allowed: 0, denied: 0, whitelisted: 0, total: 0 });
     const [globalTypeCounts, setGlobalTypeCounts] = useState({ single: 0, cidr: 0, total: 0 });
     const location = useLocation();
@@ -378,37 +379,46 @@ const IPForm = () => {
         }
     });
 
-    // Fetch IPs with server-side filtering, sorting, and pagination
+    // Fetch IPs with server-side filtering, sorting, and infinite scroll
     useEffect(() => {
         const fetchIPs = async () => {
             setLoading(true);
+            
             try {
-                const response = await axiosInstance.get('/api/ips', {
-                    params: {
-                        page: page + 1,
-                        limit: rowsPerPage,
-                        status: filterStatus || undefined,
-                        type: filterType || undefined,
-                        search: debouncedSearchValue || undefined,
-                        orderBy,
-                        order,
-                    }
-                });
+                const params = {
+                    page: 1,
+                    limit: 25,
+                    status: filterStatus || undefined,
+                    type: filterType || undefined,
+                    search: debouncedSearchValue || undefined,
+                    orderBy,
+                    order,
+                };
+                
+                const response = await axiosInstance.get('/api/ips', { params });
+                
                 if (response.data && response.data.items) {
                     setIps(response.data.items);
-                    setTotal(response.data.total || response.data.items.length);
+                    setHasMore(response.data.items.length === 25);
+                    setTotal(response.data.total || 0);
                 } else {
                     setIps([]);
+                    setHasMore(false);
                     setTotal(0);
                 }
-                setLoading(false);
             } catch (err) {
                 setError('Failed to fetch IP addresses');
+            } finally {
                 setLoading(false);
             }
         };
+        
+        // Reset infinite scroll state when filters change
+        setHasMore(true);
+        setIps([]);
+        
         fetchIPs();
-    }, [refresh, page, rowsPerPage, filterStatus, filterType, debouncedSearchValue, orderBy, order]);
+    }, [refresh, filterStatus, filterType, debouncedSearchValue, orderBy, order]);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
@@ -572,20 +582,15 @@ const IPForm = () => {
             setOrderBy(field);
             setOrder('asc');
         }
+        // Reset IPs when sorting changes
+        setIps([]);
+        setHasMore(true);
     }, [orderBy, order]);
-
-    const handleChangePage = useCallback((event, newPage) => {
-        setPage(newPage);
-    }, []);
-
-    const handleChangeRowsPerPage = useCallback((event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    }, []);
 
     const handleSearchChange = useCallback((e) => {
         setSearchValue(e.target.value);
-        setPage(0); // Reset to first page when searching
+        setIps([]); // Reset IPs when searching
+        setHasMore(true);
     }, []);
 
     const handleCidrChange = useCallback((e) => {
@@ -594,20 +599,56 @@ const IPForm = () => {
 
     const handleStatusChange = useCallback((e) => {
         setFilterStatus(e.target.value);
-        setPage(0); // Reset to first page when filtering
+        setIps([]); // Reset IPs when filtering
+        setHasMore(true);
     }, []);
 
     const handleTypeChange = useCallback((e) => {
         setFilterType(e.target.value);
-        setPage(0); // Reset to first page when filtering
+        setIps([]); // Reset IPs when filtering
+        setHasMore(true);
     }, []);
 
     const handleReset = useCallback(() => {
         setSearchValue('');
         setFilterStatus('');
         setFilterType('');
-        setPage(0);
+        setIps([]);
+        setHasMore(true);
     }, []);
+
+    const handleLoadMore = useCallback(() => {
+        if (!infiniteLoading && hasMore) {
+            const fetchIPs = async () => {
+                setInfiniteLoading(true);
+                try {
+                    const params = {
+                        page: Math.floor(ips.length / 25) + 1,
+                        limit: 25,
+                        status: filterStatus || undefined,
+                        type: filterType || undefined,
+                        search: debouncedSearchValue || undefined,
+                        orderBy,
+                        order,
+                    };
+                    
+                    const response = await axiosInstance.get('/api/ips', { params });
+                    
+                    if (response.data && response.data.items) {
+                        setIps(prev => [...prev, ...response.data.items]);
+                        setHasMore(response.data.items.length === 25);
+                    } else {
+                        setHasMore(false);
+                    }
+                } catch (err) {
+                    setError('Failed to fetch more IP addresses');
+                } finally {
+                    setInfiniteLoading(false);
+                }
+            };
+            fetchIPs();
+        }
+    }, [infiniteLoading, hasMore, ips.length, filterStatus, filterType, debouncedSearchValue, orderBy, order]);
 
     const handleSearchFocus = useCallback(() => {
         setWasFocused(true);
@@ -713,18 +754,17 @@ const IPForm = () => {
 
     const tableProps = React.useMemo(() => ({
         ips,
-        loading,
-        orderBy,
-        order,
-        page,
-        rowsPerPage,
+        loading: loading || infiniteLoading,
+        error,
         total,
+        hasMore,
+        onLoadMore: handleLoadMore,
         onSort: handleSort,
         onEdit: handleEdit,
         onDelete: handleDelete,
-        onChangePage: handleChangePage,
-        onChangeRowsPerPage: handleChangeRowsPerPage
-    }), [ips, loading, orderBy, order, page, rowsPerPage, total, handleSort, handleEdit, handleDelete, handleChangePage, handleChangeRowsPerPage]);
+        orderBy,
+        order
+    }), [ips, loading, infiniteLoading, error, total, hasMore, handleLoadMore, handleSort, handleEdit, handleDelete, orderBy, order]);
 
     return (
         <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4, p: 2 }}>
@@ -792,19 +832,18 @@ const IPForm = () => {
             />
 
             {/* Table */}
-            <IPTable
+            <InfiniteScrollIPTable
                 ips={ips}
-                loading={loading}
+                loading={loading || infiniteLoading}
+                error={error}
+                total={total}
+                hasMore={hasMore}
+                onLoadMore={handleLoadMore}
+                onSort={handleSort}
                 orderBy={orderBy}
                 order={order}
-                page={page}
-                rowsPerPage={rowsPerPage}
-                total={total}
-                onSort={handleSort}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                onChangePage={handleChangePage}
-                onChangeRowsPerPage={handleChangeRowsPerPage}
             />
         </Box>
     );

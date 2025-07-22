@@ -26,6 +26,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Tooltip from '@mui/material/Tooltip';
 import InfoIcon from '@mui/icons-material/Info';
 import { useLocation } from 'react-router-dom';
+import InfiniteScrollUserAgentTable from './InfiniteScrollUserAgentTable';
 
 
 // Separate memoized search field component that never re-renders
@@ -285,14 +286,14 @@ const UserAgentForm = () => {
     const [userAgents, setUserAgents] = useState([]);
     const [editId, setEditId] = useState(null);
     
-    // Filtering and pagination state
+    // Filtering and infinite scroll state
     const [loading, setLoading] = useState(true);
+    const [infiniteLoading, setInfiniteLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('');
     const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
     const [globalStatusCounts, setGlobalStatusCounts] = useState({ allowed: 0, denied: 0, whitelisted: 0, total: 0 });
     const location = useLocation();
 
@@ -336,36 +337,45 @@ const UserAgentForm = () => {
 
 
 
-    // Fetch user agents with server-side filtering, sorting, and pagination
+    // Fetch user agents with server-side filtering, sorting, and infinite scroll
     useEffect(() => {
         const fetchUserAgents = async () => {
             setLoading(true);
+            
             try {
-                const response = await axios.get('/api/user-agents', {
-                    params: {
-                        page: page + 1,
-                        limit: rowsPerPage,
-                        status: filterStatus || undefined,
-                        search: debouncedSearchValue || undefined,
-                        orderBy,
-                        order,
-                    }
-                });
+                const params = {
+                    page: 1,
+                    limit: 25,
+                    status: filterStatus || undefined,
+                    search: debouncedSearchValue || undefined,
+                    orderBy,
+                    order,
+                };
+                
+                const response = await axios.get('/api/user-agents', { params });
+                
                 if (response.data && response.data.items) {
                     setUserAgents(response.data.items);
-                    setTotal(response.data.total || response.data.items.length);
+                    setHasMore(response.data.items.length === 25);
+                    setTotal(response.data.total || 0);
                 } else {
                     setUserAgents([]);
+                    setHasMore(false);
                     setTotal(0);
                 }
-                setLoading(false);
             } catch (err) {
                 setError('Failed to fetch user agents');
+            } finally {
                 setLoading(false);
             }
         };
+        
+        // Reset infinite scroll state when filters change
+        setHasMore(true);
+        setUserAgents([]);
+        
         fetchUserAgents();
-    }, [refresh, page, rowsPerPage, filterStatus, debouncedSearchValue, orderBy, order]);
+    }, [refresh, filterStatus, debouncedSearchValue, orderBy, order]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -395,18 +405,21 @@ const UserAgentForm = () => {
 
     const handleStatusChange = (e) => {
         setFilterStatus(e.target.value);
-        setPage(0); // Reset to first page when filtering
+        setUserAgents([]); // Reset user agents when filtering
+        setHasMore(true);
     };
 
     const handleReset = () => {
         setSearchValue('');
         setFilterStatus('');
-        setPage(0);
+        setUserAgents([]);
+        setHasMore(true);
     };
 
     const handleSearchChange = useCallback((e) => {
         setSearchValue(e.target.value);
-        setPage(0); // Reset to first page when searching
+        setUserAgents([]); // Reset user agents when searching
+        setHasMore(true);
     }, []);
 
     const handleSort = useCallback((field) => {
@@ -416,16 +429,42 @@ const UserAgentForm = () => {
             setOrderBy(field);
             setOrder('asc');
         }
+        // Reset user agents when sorting changes
+        setUserAgents([]);
+        setHasMore(true);
     }, [orderBy, order]);
 
-    const handleChangePage = useCallback((event, newPage) => {
-        setPage(newPage);
-    }, []);
-
-    const handleChangeRowsPerPage = useCallback((event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    }, []);
+    const handleLoadMore = useCallback(() => {
+        if (!infiniteLoading && hasMore) {
+            const fetchUserAgents = async () => {
+                setInfiniteLoading(true);
+                try {
+                    const params = {
+                        page: Math.floor(userAgents.length / 25) + 1,
+                        limit: 25,
+                        status: filterStatus || undefined,
+                        search: debouncedSearchValue || undefined,
+                        orderBy,
+                        order,
+                    };
+                    
+                    const response = await axios.get('/api/user-agents', { params });
+                    
+                    if (response.data && response.data.items) {
+                        setUserAgents(prev => [...prev, ...response.data.items]);
+                        setHasMore(response.data.items.length === 25);
+                    } else {
+                        setHasMore(false);
+                    }
+                } catch (err) {
+                    setError('Failed to fetch more user agents');
+                } finally {
+                    setInfiniteLoading(false);
+                }
+            };
+            fetchUserAgents();
+        }
+    }, [infiniteLoading, hasMore, userAgents.length, filterStatus, debouncedSearchValue, orderBy, order]);
 
     const handleEdit = useCallback((userAgentItem) => {
         setUserAgent(userAgentItem.user_agent);
@@ -485,17 +524,16 @@ const UserAgentForm = () => {
             />
 
             {/* Table */}
-            <UserAgentTable 
+            <InfiniteScrollUserAgentTable 
                 userAgents={userAgents}
-                loading={loading}
+                loading={loading || infiniteLoading}
+                error={error}
                 total={total}
-                page={page}
-                rowsPerPage={rowsPerPage}
+                hasMore={hasMore}
+                onLoadMore={handleLoadMore}
+                onSort={handleSort}
                 orderBy={orderBy}
                 order={order}
-                onSort={handleSort}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
             />

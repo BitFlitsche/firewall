@@ -3,23 +3,13 @@ import axios from 'axios';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-import TableSortLabel from '@mui/material/TableSortLabel';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
-import TablePagination from '@mui/material/TablePagination';
-import TrafficLogsCards from './TrafficLogsCards';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import InfiniteScrollCards from './InfiniteScrollCards';
-import CardsPagination from './CardsPagination';
-import LayoutToggle from './LayoutToggle';
 import './styles.css';
 
 const AnalyticsDashboard = () => {
@@ -28,12 +18,10 @@ const AnalyticsDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
 
-    // Traffic logs table state
+    // Traffic logs state
     const [trafficLogs, setTrafficLogs] = useState([]);
     const [logsLoading, setLogsLoading] = useState(false);
     const [logsError, setLogsError] = useState(null);
-    const [logsPage, setLogsPage] = useState(0);
-    const [logsRowsPerPage, setLogsRowsPerPage] = useState(25);
     const [logsTotal, setLogsTotal] = useState(0);
     const [logsFilterIP, setLogsFilterIP] = useState('');
     const [logsFilterEmail, setLogsFilterEmail] = useState('');
@@ -45,30 +33,31 @@ const AnalyticsDashboard = () => {
     const [logsOrderBy, setLogsOrderBy] = useState('timestamp');
     const [logsOrder, setLogsOrder] = useState('desc');
     const [logsStats, setLogsStats] = useState({ total: 0, allowed: 0, denied: 0, whitelisted: 0 });
-    const [logsLayout, setLogsLayout] = useState('table'); // 'table' or 'cards'
     const [logsInfiniteLoading, setLogsInfiniteLoading] = useState(false);
     const [logsHasMore, setLogsHasMore] = useState(true);
 
     useEffect(() => {
+        console.log('useEffect triggered - period:', period);
         fetchAnalytics();
     }, [period]);
 
     useEffect(() => {
         if (activeTab === 'logs') {
             // Reset infinite scroll state when filters change
-            if (logsLayout === 'cards') {
-                setLogsHasMore(true);
-                setTrafficLogs([]);
-            }
+            setLogsHasMore(true);
+            setTrafficLogs([]);
             fetchTrafficLogs();
             fetchLogsStats();
         }
-    }, [activeTab, logsPage, logsRowsPerPage, logsFilterIP, logsFilterEmail, logsFilterUserAgent, logsFilterUsername, logsFilterCountry, logsFilterASN, logsFilterResult, logsOrderBy, logsOrder]);
+    }, [activeTab, logsFilterIP, logsFilterEmail, logsFilterUserAgent, logsFilterUsername, logsFilterCountry, logsFilterASN, logsFilterResult, logsOrderBy, logsOrder]);
 
     const fetchAnalytics = async () => {
         try {
+            console.log('Fetching analytics for period:', period);
             const response = await axios.get(`/api/analytics/traffic?period=${period}`);
+            console.log('Analytics response:', response.data);
             setAnalytics(response.data);
+            console.log('Analytics state set to:', response.data);
         } catch (error) {
             console.error('Error fetching analytics:', error);
         } finally {
@@ -88,8 +77,8 @@ const AnalyticsDashboard = () => {
         
         try {
             const params = {
-                page: isInfinite ? Math.floor(trafficLogs.length / logsRowsPerPage) + 1 : logsPage + 1,
-                limit: logsRowsPerPage,
+                page: isInfinite ? Math.floor(trafficLogs.length / 25) + 1 : 1,
+                limit: 25,
                 orderBy: logsOrderBy,
                 order: logsOrder,
             };
@@ -122,11 +111,11 @@ const AnalyticsDashboard = () => {
                 if (isInfinite) {
                     // Append to existing logs for infinite scroll
                     setTrafficLogs(prev => [...prev, ...response.data.logs]);
-                    setLogsHasMore(response.data.logs.length === logsRowsPerPage);
+                    setLogsHasMore(response.data.logs.length === 25);
                 } else {
-                    // Replace logs for regular pagination
+                    // Replace logs for initial load
                     setTrafficLogs(response.data.logs);
-                    setLogsHasMore(response.data.logs.length === logsRowsPerPage);
+                    setLogsHasMore(response.data.logs.length === 25);
                 }
                 setLogsTotal(response.data.total || 0);
             } else {
@@ -158,6 +147,10 @@ const AnalyticsDashboard = () => {
     };
 
     const formatNumber = (num) => {
+        if (num === null || num === undefined) {
+            console.log('formatNumber received null/undefined:', num);
+            return '0';
+        }
         return new Intl.NumberFormat().format(num);
     };
 
@@ -178,14 +171,7 @@ const AnalyticsDashboard = () => {
         }
     };
 
-    const handleLogsChangePage = (event, newPage) => {
-        setLogsPage(newPage);
-    };
 
-    const handleLogsChangeRowsPerPage = (event) => {
-        setLogsRowsPerPage(parseInt(event.target.value, 10));
-        setLogsPage(0);
-    };
 
     const resetLogsFilters = () => {
         setLogsFilterIP('');
@@ -225,24 +211,20 @@ const AnalyticsDashboard = () => {
                 </div>
             </div>
 
-            <div className="tab-navigation">
-                <button 
-                    className={activeTab === 'overview' ? 'active' : ''} 
-                    onClick={() => setActiveTab('overview')}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Tabs 
+                    value={activeTab} 
+                    onChange={(event, newValue) => setActiveTab(newValue)}
+                    aria-label="Analytics dashboard tabs"
                 >
-                    Overview
-                </button>
-
-                <button 
-                    className={activeTab === 'logs' ? 'active' : ''} 
-                    onClick={() => setActiveTab('logs')}
-                >
-                    Traffic Logs
-                </button>
-            </div>
+                    <Tab label="Overview" value="overview" />
+                    <Tab label="Traffic Logs" value="logs" />
+                </Tabs>
+            </Box>
 
             {activeTab === 'overview' && analytics && (
                 <div className="overview-tab">
+                    {console.log('Rendering overview with analytics:', analytics)}
                     <div className="metrics-grid">
                         <div className="metric-card">
                             <h3>Total Requests</h3>
@@ -399,16 +381,11 @@ const AnalyticsDashboard = () => {
                         </Button>
                     </Box>
 
-                    <LayoutToggle 
-                        layout={logsLayout} 
-                        onLayoutChange={setLogsLayout} 
-                    />
-
                     {logsLoading ? (
                         <div>Loading traffic logs...</div>
                     ) : logsError ? (
                         <div className="error">{logsError}</div>
-                    ) : logsLayout === 'cards' ? (
+                    ) : (
                         // Cards Layout with Infinite Scroll
                         <Box>
                             <InfiniteScrollCards
@@ -423,164 +400,6 @@ const AnalyticsDashboard = () => {
                                 order={logsOrder}
                             />
                         </Box>
-                    ) : (
-                        // Table Layout
-                        <TableContainer component={Paper}>
-                            <TablePagination
-                                component="div"
-                                count={logsTotal}
-                                page={logsPage}
-                                onPageChange={handleLogsChangePage}
-                                rowsPerPage={logsRowsPerPage}
-                                onRowsPerPageChange={handleLogsChangeRowsPerPage}
-                                rowsPerPageOptions={[10, 25, 50, 100]}
-                                labelRowsPerPage="Entries per page:"
-                            />
-                            <Table className="list-table">
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell sx={{ width: '140px' }}>
-                                            <TableSortLabel
-                                                active={logsOrderBy === 'timestamp'}
-                                                direction={logsOrderBy === 'timestamp' ? logsOrder : 'asc'}
-                                                onClick={() => handleLogsSort('timestamp')}
-                                            >
-                                                Timestamp
-                                            </TableSortLabel>
-                                        </TableCell>
-                                        <TableCell sx={{ width: '100px' }}>
-                                            <TableSortLabel
-                                                active={logsOrderBy === 'final_result'}
-                                                direction={logsOrderBy === 'final_result' ? logsOrder : 'asc'}
-                                                onClick={() => handleLogsSort('final_result')}
-                                            >
-                                                Result
-                                            </TableSortLabel>
-                                        </TableCell>
-                                        <TableCell sx={{ width: '140px' }}>
-                                            <TableSortLabel
-                                                active={logsOrderBy === 'ip_address'}
-                                                direction={logsOrderBy === 'ip_address' ? logsOrder : 'asc'}
-                                                onClick={() => handleLogsSort('ip_address')}
-                                            >
-                                                IP Address
-                                            </TableSortLabel>
-                                        </TableCell>
-                                        <TableCell sx={{ width: '200px' }}>
-                                            <TableSortLabel
-                                                active={logsOrderBy === 'email'}
-                                                direction={logsOrderBy === 'email' ? logsOrder : 'asc'}
-                                                onClick={() => handleLogsSort('email')}
-                                            >
-                                                Email
-                                            </TableSortLabel>
-                                        </TableCell>
-                                        <TableCell sx={{ width: '250px' }}>
-                                            <TableSortLabel
-                                                active={logsOrderBy === 'user_agent'}
-                                                direction={logsOrderBy === 'user_agent' ? logsOrder : 'asc'}
-                                                onClick={() => handleLogsSort('user_agent')}
-                                            >
-                                                User Agent
-                                            </TableSortLabel>
-                                        </TableCell>
-                                        <TableCell sx={{ width: '120px' }}>
-                                            <TableSortLabel
-                                                active={logsOrderBy === 'username'}
-                                                direction={logsOrderBy === 'username' ? logsOrder : 'asc'}
-                                                onClick={() => handleLogsSort('username')}
-                                            >
-                                                Username
-                                            </TableSortLabel>
-                                        </TableCell>
-                                        <TableCell sx={{ width: '80px' }}>
-                                            <TableSortLabel
-                                                active={logsOrderBy === 'country'}
-                                                direction={logsOrderBy === 'country' ? logsOrder : 'asc'}
-                                                onClick={() => handleLogsSort('country')}
-                                            >
-                                                Country
-                                            </TableSortLabel>
-                                        </TableCell>
-                                        <TableCell sx={{ width: '100px' }}>
-                                            <TableSortLabel
-                                                active={logsOrderBy === 'asn'}
-                                                direction={logsOrderBy === 'asn' ? logsOrder : 'asc'}
-                                                onClick={() => handleLogsSort('asn')}
-                                            >
-                                                ASN
-                                            </TableSortLabel>
-                                        </TableCell>
-                                        <TableCell sx={{ width: '120px' }}>
-                                            <TableSortLabel
-                                                active={logsOrderBy === 'response_time_ms'}
-                                                direction={logsOrderBy === 'response_time_ms' ? logsOrder : 'asc'}
-                                                onClick={() => handleLogsSort('response_time_ms')}
-                                            >
-                                                Response Time
-                                            </TableSortLabel>
-                                        </TableCell>
-                                        <TableCell sx={{ width: '100px' }}>
-                                            <TableSortLabel
-                                                active={logsOrderBy === 'cache_hit'}
-                                                direction={logsOrderBy === 'cache_hit' ? logsOrder : 'asc'}
-                                                onClick={() => handleLogsSort('cache_hit')}
-                                            >
-                                                Cache Hit
-                                            </TableSortLabel>
-                                        </TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {trafficLogs.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={10} align="center">No traffic logs found</TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        trafficLogs.map((log, index) => (
-                                            <TableRow key={log.id || index}>
-                                                <TableCell sx={{ width: '140px' }}>{new Date(log.timestamp).toLocaleString()}</TableCell>
-                                                <TableCell sx={{ width: '100px' }}>
-                                                    <span className={`result ${log.final_result}`}>
-                                                        {log.final_result}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell sx={{ width: '140px' }}>{log.ip_address || '-'}</TableCell>
-                                                <TableCell sx={{ width: '200px' }}>{log.email || '-'}</TableCell>
-                                                <TableCell sx={{ width: '250px' }}>
-                                                    {log.user_agent ? 
-                                                        (log.user_agent.length > 50 ? 
-                                                            log.user_agent.substring(0, 50) + '...' : 
-                                                            log.user_agent) : 
-                                                        '-'
-                                                    }
-                                                </TableCell>
-                                                <TableCell sx={{ width: '120px' }}>{log.username || '-'}</TableCell>
-                                                <TableCell sx={{ width: '80px' }}>{log.country || '-'}</TableCell>
-                                                <TableCell sx={{ width: '100px' }}>{log.asn || '-'}</TableCell>
-                                                <TableCell sx={{ width: '120px' }}>{log.response_time_ms}ms</TableCell>
-                                                <TableCell sx={{ width: '100px' }}>
-                                                    {log.cache_hit ? 
-                                                        <span className="cache-hit">Yes</span> : 
-                                                        <span className="cache-miss">No</span>
-                                                    }
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                            <TablePagination
-                                component="div"
-                                count={logsTotal}
-                                page={logsPage}
-                                onPageChange={handleLogsChangePage}
-                                rowsPerPage={logsRowsPerPage}
-                                onRowsPerPageChange={handleLogsChangeRowsPerPage}
-                                rowsPerPageOptions={[10, 25, 50, 100]}
-                                labelRowsPerPage="Entries per page:"
-                            />
-                        </TableContainer>
                     )}
                 </div>
             )}

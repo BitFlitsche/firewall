@@ -23,6 +23,7 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import { useLocation } from 'react-router-dom';
 import CountryFlag from './CountryFlag';
+import InfiniteScrollCountryTable from './InfiniteScrollCountryTable';
 
 
 // Memoized Form Component
@@ -263,14 +264,14 @@ const CountryForm = () => {
     const [countries, setCountries] = useState([]);
     const [editId, setEditId] = useState(null);
     
-    // Filtering and pagination state
+    // Filtering and infinite scroll state
     const [loading, setLoading] = useState(true);
+    const [infiniteLoading, setInfiniteLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('');
     const [orderBy, setOrderBy] = useState('name'); // Changed default to 'name'
     const [order, setOrder] = useState('asc');
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
     const [globalStatusCounts, setGlobalStatusCounts] = useState({ allowed: 0, denied: 0, whitelisted: 0, total: 0 });
     const location = useLocation();
 
@@ -322,36 +323,45 @@ const CountryForm = () => {
         }
     });
 
-    // Fetch countries with server-side filtering, sorting, and pagination
+    // Fetch countries with server-side filtering, sorting, and infinite scroll
     useEffect(() => {
         const fetchCountries = async () => {
             setLoading(true);
+            
             try {
-                const response = await axios.get('/api/countries', {
-                    params: {
-                        page: page + 1,
-                        limit: rowsPerPage,
-                        status: filterStatus || undefined,
-                        search: debouncedSearchValue || undefined,
-                        orderBy,
-                        order,
-                    }
-                });
+                const params = {
+                    page: 1,
+                    limit: 25,
+                    status: filterStatus || undefined,
+                    search: debouncedSearchValue || undefined,
+                    orderBy,
+                    order,
+                };
+                
+                const response = await axios.get('/api/countries', { params });
+                
                 if (response.data && response.data.items) {
                     setCountries(response.data.items);
-                    setTotal(response.data.total || response.data.items.length);
+                    setHasMore(response.data.items.length === 25);
+                    setTotal(response.data.total || 0);
                 } else {
                     setCountries([]);
+                    setHasMore(false);
                     setTotal(0);
                 }
-                setLoading(false);
             } catch (err) {
                 setError('Failed to fetch countries');
+            } finally {
                 setLoading(false);
             }
         };
+        
+        // Reset infinite scroll state when filters change
+        setHasMore(true);
+        setCountries([]);
+        
         fetchCountries();
-    }, [refresh, page, rowsPerPage, filterStatus, debouncedSearchValue, orderBy, order]);
+    }, [refresh, filterStatus, debouncedSearchValue, orderBy, order]);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
@@ -408,32 +418,61 @@ const CountryForm = () => {
             setOrderBy(field);
             setOrder('asc');
         }
+        // Reset countries when sorting changes
+        setCountries([]);
+        setHasMore(true);
     }, [orderBy, order]);
-
-    const handleChangePage = useCallback((event, newPage) => {
-        setPage(newPage);
-    }, []);
-
-    const handleChangeRowsPerPage = useCallback((event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    }, []);
 
     const handleSearchChange = useCallback((e) => {
         setSearchValue(e.target.value);
-        setPage(0); // Reset to first page when searching
+        setCountries([]); // Reset countries when searching
+        setHasMore(true);
     }, []);
 
     const handleStatusChange = useCallback((e) => {
         setFilterStatus(e.target.value);
-        setPage(0); // Reset to first page when filtering
+        setCountries([]); // Reset countries when filtering
+        setHasMore(true);
     }, []);
 
     const handleReset = useCallback(() => {
         setSearchValue('');
         setFilterStatus('');
-        setPage(0);
+        setCountries([]);
+        setHasMore(true);
     }, []);
+
+    const handleLoadMore = useCallback(() => {
+        if (!infiniteLoading && hasMore) {
+            const fetchCountries = async () => {
+                setInfiniteLoading(true);
+                try {
+                    const params = {
+                        page: Math.floor(countries.length / 25) + 1,
+                        limit: 25,
+                        status: filterStatus || undefined,
+                        search: debouncedSearchValue || undefined,
+                        orderBy,
+                        order,
+                    };
+                    
+                    const response = await axios.get('/api/countries', { params });
+                    
+                    if (response.data && response.data.items) {
+                        setCountries(prev => [...prev, ...response.data.items]);
+                        setHasMore(response.data.items.length === 25);
+                    } else {
+                        setHasMore(false);
+                    }
+                } catch (err) {
+                    setError('Failed to fetch more countries');
+                } finally {
+                    setInfiniteLoading(false);
+                }
+            };
+            fetchCountries();
+        }
+    }, [infiniteLoading, hasMore, countries.length, filterStatus, debouncedSearchValue, orderBy, order]);
 
     const handleSearchFocus = useCallback(() => {
         setWasFocused(true);
@@ -491,18 +530,17 @@ const CountryForm = () => {
 
     const tableProps = React.useMemo(() => ({
         countries,
-        loading,
-        orderBy,
-        order,
-        page,
-        rowsPerPage,
+        loading: loading || infiniteLoading,
+        error,
         total,
+        hasMore,
+        onLoadMore: handleLoadMore,
         onSort: handleSort,
         onEdit: handleEdit,
         onDelete: handleDelete,
-        onChangePage: handleChangePage,
-        onChangeRowsPerPage: handleChangeRowsPerPage
-    }), [countries, loading, orderBy, order, page, rowsPerPage, total, handleSort, handleEdit, handleDelete, handleChangePage, handleChangeRowsPerPage]);
+        orderBy,
+        order
+    }), [countries, loading, infiniteLoading, error, total, hasMore, handleLoadMore, handleSort, handleEdit, handleDelete, orderBy, order]);
 
     return (
         <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4, p: 2 }}>
@@ -526,7 +564,7 @@ const CountryForm = () => {
             <FilterControls {...filterProps} />
 
             {/* Table */}
-            <CountryTable {...tableProps} />
+            <InfiniteScrollCountryTable {...tableProps} />
         </Box>
     );
 };

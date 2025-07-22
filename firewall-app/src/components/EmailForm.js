@@ -27,6 +27,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Tooltip from '@mui/material/Tooltip';
 import InfoIcon from '@mui/icons-material/Info';
 import { useLocation } from 'react-router-dom';
+import InfiniteScrollEmailTable from './InfiniteScrollEmailTable';
 
 
 // Separate filter controls component that only re-renders when filter values change
@@ -285,14 +286,14 @@ const EmailForm = () => {
     const [emails, setEmails] = useState([]);
     const [editId, setEditId] = useState(null);
     
-    // Filtering and pagination state
+    // Filtering and infinite scroll state
     const [loading, setLoading] = useState(true);
+    const [infiniteLoading, setInfiniteLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('');
     const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
     const [globalStatusCounts, setGlobalStatusCounts] = useState({ allowed: 0, denied: 0, whitelisted: 0, total: 0 });
     const location = useLocation();
 
@@ -334,36 +335,45 @@ const EmailForm = () => {
 
 
 
-    // Fetch emails with server-side filtering, sorting, and pagination
+    // Fetch emails with server-side filtering, sorting, and infinite scroll
     useEffect(() => {
         const fetchEmails = async () => {
             setLoading(true);
+            
             try {
-                const response = await axiosInstance.get('/api/emails', {
-                    params: {
-                        page: page + 1,
-                        limit: rowsPerPage,
-                        status: filterStatus || undefined,
-                        search: debouncedSearchValue || undefined,
-                        orderBy,
-                        order,
-                    }
-                });
+                const params = {
+                    page: 1,
+                    limit: 25,
+                    status: filterStatus || undefined,
+                    search: debouncedSearchValue || undefined,
+                    orderBy,
+                    order,
+                };
+                
+                const response = await axiosInstance.get('/api/emails', { params });
+                
                 if (response.data && response.data.items) {
                     setEmails(response.data.items);
-                    setTotal(response.data.total || response.data.items.length);
+                    setHasMore(response.data.items.length === 25);
+                    setTotal(response.data.total || 0);
                 } else {
                     setEmails([]);
+                    setHasMore(false);
                     setTotal(0);
                 }
-                setLoading(false);
             } catch (err) {
                 setError('Failed to fetch emails');
+            } finally {
                 setLoading(false);
             }
         };
+        
+        // Reset infinite scroll state when filters change
+        setHasMore(true);
+        setEmails([]);
+        
         fetchEmails();
-    }, [refresh, page, rowsPerPage, filterStatus, debouncedSearchValue, orderBy, order]);
+    }, [refresh, filterStatus, debouncedSearchValue, orderBy, order]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -391,18 +401,21 @@ const EmailForm = () => {
 
     const handleSearchChange = useCallback((e) => {
         setSearchValue(e.target.value);
-        setPage(0); // Reset to first page when searching
+        setEmails([]); // Reset emails when searching
+        setHasMore(true);
     }, []);
 
     const handleStatusChange = useCallback((e) => {
         setFilterStatus(e.target.value);
-        setPage(0); // Reset to first page when filtering
+        setEmails([]); // Reset emails when filtering
+        setHasMore(true);
     }, []);
 
     const handleReset = useCallback(() => {
         setSearchValue('');
         setFilterStatus('');
-        setPage(0);
+        setEmails([]);
+        setHasMore(true);
     }, []);
 
     const handleSort = useCallback((field) => {
@@ -412,16 +425,42 @@ const EmailForm = () => {
             setOrderBy(field);
             setOrder('asc');
         }
+        // Reset emails when sorting changes
+        setEmails([]);
+        setHasMore(true);
     }, [orderBy, order]);
 
-    const handleChangePage = useCallback((event, newPage) => {
-        setPage(newPage);
-    }, []);
-
-    const handleChangeRowsPerPage = useCallback((event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    }, []);
+    const handleLoadMore = useCallback(() => {
+        if (!infiniteLoading && hasMore) {
+            const fetchEmails = async () => {
+                setInfiniteLoading(true);
+                try {
+                    const params = {
+                        page: Math.floor(emails.length / 25) + 1,
+                        limit: 25,
+                        status: filterStatus || undefined,
+                        search: debouncedSearchValue || undefined,
+                        orderBy,
+                        order,
+                    };
+                    
+                    const response = await axiosInstance.get('/api/emails', { params });
+                    
+                    if (response.data && response.data.items) {
+                        setEmails(prev => [...prev, ...response.data.items]);
+                        setHasMore(response.data.items.length === 25);
+                    } else {
+                        setHasMore(false);
+                    }
+                } catch (err) {
+                    setError('Failed to fetch more emails');
+                } finally {
+                    setInfiniteLoading(false);
+                }
+            };
+            fetchEmails();
+        }
+    }, [infiniteLoading, hasMore, emails.length, filterStatus, debouncedSearchValue, orderBy, order]);
 
     const handleEdit = useCallback((emailItem) => {
         setEmail(emailItem.address);
@@ -481,17 +520,16 @@ const EmailForm = () => {
             />
 
             {/* Table */}
-            <EmailTable 
+            <InfiniteScrollEmailTable 
                 emails={emails}
-                loading={loading}
+                loading={loading || infiniteLoading}
+                error={error}
                 total={total}
-                page={page}
-                rowsPerPage={rowsPerPage}
+                hasMore={hasMore}
+                onLoadMore={handleLoadMore}
+                onSort={handleSort}
                 orderBy={orderBy}
                 order={order}
-                onSort={handleSort}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
             />

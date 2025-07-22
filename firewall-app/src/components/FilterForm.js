@@ -70,7 +70,7 @@ const FilterForm = () => {
                 <Typography variant="h5" gutterBottom>Apply Filter</Typography>
                 <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <TextField
-                        label="IP Address *"
+                        label="IP Address"
                         value={filterData.ip}
                         onChange={handleInputChange('ip')}
                         placeholder="Enter IP address to filter"
@@ -105,6 +105,7 @@ const FilterForm = () => {
                         onChange={handleInputChange('country')}
                         placeholder="Enter country code to filter"
                         fullWidth
+                        helperText="Leave empty for automatic Country lookup from IP"
                     />
                     <TextField
                         label="ASN"

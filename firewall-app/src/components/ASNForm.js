@@ -28,6 +28,7 @@ import TableSortLabel from '@mui/material/TableSortLabel';
 import TablePagination from '@mui/material/TablePagination';
 import Link from '@mui/material/Link';
 import { useLocation } from 'react-router-dom';
+import InfiniteScrollASNTable from './InfiniteScrollASNTable';
 
 // Memoized Form Component
 const ASNFormComponent = React.memo(({ 
@@ -408,16 +409,16 @@ const ASNForm = () => {
     const [asns, setASNs] = useState([]);
     const [editId, setEditId] = useState(null);
     
-    // Filtering and pagination state
+    // Filtering and infinite scroll state
     const [loading, setLoading] = useState(true);
+    const [infiniteLoading, setInfiniteLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('');
     const [filterRIR, setFilterRIR] = useState('');
     const [filterCountry, setFilterCountry] = useState('');
     const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
     const [globalStatusCounts, setGlobalStatusCounts] = useState({ allowed: 0, denied: 0, whitelisted: 0, total: 0 });
     const [globalRIRCounts, setGlobalRIRCounts] = useState({ total: 0 });
     const [globalCountryCounts, setGlobalCountryCounts] = useState({ total: 0 });
@@ -476,38 +477,47 @@ const ASNForm = () => {
             });
     }, [refresh]);
 
-    // Fetch ASNs with server-side filtering, sorting, and pagination
+    // Fetch ASNs with server-side filtering, sorting, and infinite scroll
     useEffect(() => {
         const fetchASNs = async () => {
             setLoading(true);
+            
             try {
-                const response = await axiosInstance.get('/api/asns', {
-                    params: {
-                        page: page + 1,
-                        limit: rowsPerPage,
-                        status: filterStatus || undefined,
-                        rir: filterRIR || undefined,
-                        country: filterCountry || undefined,
-                        search: debouncedSearchValue || undefined,
-                        orderBy,
-                        order,
-                    }
-                });
+                const params = {
+                    page: 1,
+                    limit: 25,
+                    status: filterStatus || undefined,
+                    rir: filterRIR || undefined,
+                    country: filterCountry || undefined,
+                    search: debouncedSearchValue || undefined,
+                    orderBy,
+                    order,
+                };
+                
+                const response = await axiosInstance.get('/api/asns', { params });
+                
                 if (response.data && response.data.items) {
                     setASNs(response.data.items);
-                    setTotal(response.data.total || response.data.items.length);
+                    setHasMore(response.data.items.length === 25);
+                    setTotal(response.data.total || 0);
                 } else {
                     setASNs([]);
+                    setHasMore(false);
                     setTotal(0);
                 }
-                setLoading(false);
             } catch (err) {
                 setError('Failed to fetch ASNs');
+            } finally {
                 setLoading(false);
             }
         };
+        
+        // Reset infinite scroll state when filters change
+        setHasMore(true);
+        setASNs([]);
+        
         fetchASNs();
-    }, [refresh, page, rowsPerPage, filterStatus, filterRIR, filterCountry, debouncedSearchValue, orderBy, order]);
+    }, [refresh, filterStatus, filterRIR, filterCountry, debouncedSearchValue, orderBy, order]);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
@@ -585,35 +595,67 @@ const ASNForm = () => {
             setOrderBy(field);
             setOrder('asc');
         }
+        // Reset ASNs when sorting changes
+        setASNs([]);
+        setHasMore(true);
     }, [orderBy, order]);
 
-    const handleChangePage = useCallback((event, newPage) => {
-        setPage(newPage);
-    }, []);
-
-    const handleChangeRowsPerPage = useCallback((event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    }, []);
+    const handleLoadMore = useCallback(() => {
+        if (!infiniteLoading && hasMore) {
+            const fetchASNs = async () => {
+                setInfiniteLoading(true);
+                try {
+                    const params = {
+                        page: Math.floor(asns.length / 25) + 1,
+                        limit: 25,
+                        status: filterStatus || undefined,
+                        rir: filterRIR || undefined,
+                        country: filterCountry || undefined,
+                        search: debouncedSearchValue || undefined,
+                        orderBy,
+                        order,
+                    };
+                    
+                    const response = await axiosInstance.get('/api/asns', { params });
+                    
+                    if (response.data && response.data.items) {
+                        setASNs(prev => [...prev, ...response.data.items]);
+                        setHasMore(response.data.items.length === 25);
+                    } else {
+                        setHasMore(false);
+                    }
+                } catch (err) {
+                    setError('Failed to fetch more ASNs');
+                } finally {
+                    setInfiniteLoading(false);
+                }
+            };
+            fetchASNs();
+        }
+    }, [infiniteLoading, hasMore, asns.length, filterStatus, filterRIR, filterCountry, debouncedSearchValue, orderBy, order]);
 
     const handleSearchChange = useCallback((e) => {
         setSearchValue(e.target.value);
-        setPage(0); // Reset to first page when searching
+        setASNs([]); // Reset ASNs when searching
+        setHasMore(true);
     }, []);
 
     const handleStatusChange = useCallback((e) => {
         setFilterStatus(e.target.value);
-        setPage(0); // Reset to first page when filtering
+        setASNs([]); // Reset ASNs when filtering
+        setHasMore(true);
     }, []);
 
     const handleRIRFilterChange = useCallback((e) => {
         setFilterRIR(e.target.value);
-        setPage(0); // Reset to first page when filtering
+        setASNs([]); // Reset ASNs when filtering
+        setHasMore(true);
     }, []);
 
     const handleCountryFilterChange = useCallback((e) => {
         setFilterCountry(e.target.value);
-        setPage(0); // Reset to first page when filtering
+        setASNs([]); // Reset ASNs when filtering
+        setHasMore(true);
     }, []);
 
     const handleReset = useCallback(() => {
@@ -621,7 +663,8 @@ const ASNForm = () => {
         setFilterStatus('');
         setFilterRIR('');
         setFilterCountry('');
-        setPage(0);
+        setASNs([]);
+        setHasMore(true);
     }, []);
 
     const handleSearchFocus = useCallback(() => {
@@ -890,19 +933,18 @@ const ASNForm = () => {
             />
 
             {/* Table */}
-            <ASNTable
+            <InfiniteScrollASNTable
                 asns={asns}
-                loading={loading}
+                loading={loading || infiniteLoading}
+                error={error}
+                total={total}
+                hasMore={hasMore}
+                onLoadMore={handleLoadMore}
+                onSort={handleSort}
                 orderBy={orderBy}
                 order={order}
-                page={page}
-                rowsPerPage={rowsPerPage}
-                total={total}
-                onSort={handleSort}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                onChangePage={handleChangePage}
-                onChangeRowsPerPage={handleChangeRowsPerPage}
             />
         </Box>
     );

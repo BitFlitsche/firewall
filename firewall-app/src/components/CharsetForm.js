@@ -12,6 +12,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import axios from '../axiosConfig';
 import { useLocation } from 'react-router-dom';
+import InfiniteScrollCharsetTable from './InfiniteScrollCharsetTable';
 
 
 // Separate filter controls component that only re-renders when filter values change
@@ -445,14 +446,14 @@ const CharsetForm = () => {
     const [charsets, setCharsets] = useState([]);
     const [editId, setEditId] = useState(null);
     
-    // Filtering and pagination state
+    // Filtering and infinite scroll state
     const [loading, setLoading] = useState(true);
+    const [infiniteLoading, setInfiniteLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('');
     const [orderBy, setOrderBy] = useState('charset');
     const [order, setOrder] = useState('asc');
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
     const [globalStatusCounts, setGlobalStatusCounts] = useState({ allowed: 0, denied: 0, whitelisted: 0, total: 0 });
     const location = useLocation();
 
@@ -518,36 +519,46 @@ const CharsetForm = () => {
 
 
 
-    // Fetch charsets with server-side filtering, sorting, and pagination
+    // Fetch charsets with server-side filtering, sorting, and infinite scroll
     useEffect(() => {
         const fetchCharsets = async () => {
             setLoading(true);
+            
             try {
-                const response = await axios.get('/api/charsets', {
-                    params: {
-                        page: page + 1,
-                        limit: rowsPerPage,
-                        status: filterStatus || undefined,
-                        search: debouncedSearchValue || undefined,
-                        orderBy,
-                        order,
-                    }
-                });
+                const params = {
+                    page: 1,
+                    limit: 25,
+                    status: filterStatus || undefined,
+                    search: debouncedSearchValue || undefined,
+                    orderBy,
+                    order,
+                };
+                
+                const response = await axios.get('/api/charsets', { params });
+                
                 if (response.data && response.data.items) {
+                    // Replace charsets for initial load
                     setCharsets(response.data.items);
-                    setTotal(response.data.total || response.data.items.length);
+                    setHasMore(response.data.items.length === 25);
+                    setTotal(response.data.total || 0);
                 } else {
                     setCharsets([]);
+                    setHasMore(false);
                     setTotal(0);
                 }
-                setLoading(false);
             } catch (err) {
                 setError('Failed to fetch charsets');
+            } finally {
                 setLoading(false);
             }
         };
+        
+        // Reset infinite scroll state when filters change
+        setHasMore(true);
+        setCharsets([]);
+        
         fetchCharsets();
-    }, [refresh, page, rowsPerPage, filterStatus, debouncedSearchValue, orderBy, order]);
+    }, [refresh, filterStatus, debouncedSearchValue, orderBy, order]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -574,19 +585,54 @@ const CharsetForm = () => {
 
     const handleSearchChange = useCallback((e) => {
         setSearchValue(e.target.value);
-        setPage(0); // Reset to first page when searching
+        setCharsets([]); // Reset charsets when searching
+        setHasMore(true);
     }, []);
 
     const handleStatusChange = useCallback((e) => {
         setFilterStatus(e.target.value);
-        setPage(0); // Reset to first page when filtering
+        setCharsets([]); // Reset charsets when filtering
+        setHasMore(true);
     }, []);
 
     const handleReset = useCallback(() => {
         setSearchValue('');
         setFilterStatus('');
-        setPage(0);
+        setCharsets([]);
+        setHasMore(true);
     }, []);
+
+    const handleLoadMore = useCallback(() => {
+        if (!infiniteLoading && hasMore) {
+            const fetchCharsets = async () => {
+                setInfiniteLoading(true);
+                try {
+                    const params = {
+                        page: Math.floor(charsets.length / 25) + 1,
+                        limit: 25,
+                        status: filterStatus || undefined,
+                        search: debouncedSearchValue || undefined,
+                        orderBy,
+                        order,
+                    };
+                    
+                    const response = await axios.get('/api/charsets', { params });
+                    
+                    if (response.data && response.data.items) {
+                        setCharsets(prev => [...prev, ...response.data.items]);
+                        setHasMore(response.data.items.length === 25);
+                    } else {
+                        setHasMore(false);
+                    }
+                } catch (err) {
+                    setError('Failed to fetch more charsets');
+                } finally {
+                    setInfiniteLoading(false);
+                }
+            };
+            fetchCharsets();
+        }
+    }, [infiniteLoading, hasMore, charsets.length, filterStatus, debouncedSearchValue, orderBy, order]);
 
     const handleSort = useCallback((field) => {
         if (orderBy === field) {
@@ -595,16 +641,10 @@ const CharsetForm = () => {
             setOrderBy(field);
             setOrder('asc');
         }
+        // Reset charsets when sorting changes
+        setCharsets([]);
+        setHasMore(true);
     }, [orderBy, order]);
-
-    const handleChangePage = useCallback((event, newPage) => {
-        setPage(newPage);
-    }, []);
-
-    const handleChangeRowsPerPage = useCallback((event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    }, []);
 
     const handleEdit = useCallback((charsetItem) => {
         setCharset(charsetItem.charset);
@@ -707,17 +747,16 @@ const CharsetForm = () => {
             />
 
             {/* Table */}
-            <CharsetTable 
+            <InfiniteScrollCharsetTable 
                 charsets={charsets}
-                loading={loading}
+                loading={infiniteLoading}
+                error={error}
                 total={total}
-                page={page}
-                rowsPerPage={rowsPerPage}
+                hasMore={hasMore}
+                onLoadMore={handleLoadMore}
+                onSort={handleSort}
                 orderBy={orderBy}
                 order={order}
-                onSort={handleSort}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
             />

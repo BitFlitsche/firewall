@@ -26,6 +26,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Tooltip from '@mui/material/Tooltip';
 import InfoIcon from '@mui/icons-material/Info';
 import { useLocation } from 'react-router-dom';
+import InfiniteScrollUsernameTable from './InfiniteScrollUsernameTable';
 
 
 // Memoized Form Component
@@ -283,14 +284,14 @@ const UsernameForm = () => {
     const [usernames, setUsernames] = useState([]);
     const [editId, setEditId] = useState(null);
     
-    // Filtering and pagination state
+    // Filtering and infinite scroll state
     const [loading, setLoading] = useState(true);
+    const [infiniteLoading, setInfiniteLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('');
     const [orderBy, setOrderBy] = useState('id');
     const [order, setOrder] = useState('desc');
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
     const [globalStatusCounts, setGlobalStatusCounts] = useState({ allowed: 0, denied: 0, whitelisted: 0, total: 0 });
     const location = useLocation();
 
@@ -342,36 +343,45 @@ const UsernameForm = () => {
         }
     });
 
-    // Fetch usernames with server-side filtering, sorting, and pagination
+    // Fetch usernames with server-side filtering, sorting, and infinite scroll
     useEffect(() => {
         const fetchUsernames = async () => {
             setLoading(true);
+            
             try {
-                const response = await axios.get('/api/usernames', {
-                    params: {
-                        page: page + 1,
-                        limit: rowsPerPage,
-                        status: filterStatus || undefined,
-                        search: debouncedSearchValue || undefined,
-                        orderBy,
-                        order,
-                    }
-                });
+                const params = {
+                    page: 1,
+                    limit: 25,
+                    status: filterStatus || undefined,
+                    search: debouncedSearchValue || undefined,
+                    orderBy,
+                    order,
+                };
+                
+                const response = await axios.get('/api/usernames', { params });
+                
                 if (response.data && response.data.items) {
                     setUsernames(response.data.items);
-                    setTotal(response.data.total || response.data.items.length);
+                    setHasMore(response.data.items.length === 25);
+                    setTotal(response.data.total || 0);
                 } else {
                     setUsernames([]);
+                    setHasMore(false);
                     setTotal(0);
                 }
-                setLoading(false);
             } catch (err) {
                 setError('Failed to fetch usernames');
+            } finally {
                 setLoading(false);
             }
         };
+        
+        // Reset infinite scroll state when filters change
+        setHasMore(true);
+        setUsernames([]);
+        
         fetchUsernames();
-    }, [refresh, page, rowsPerPage, filterStatus, debouncedSearchValue, orderBy, order]);
+    }, [refresh, filterStatus, debouncedSearchValue, orderBy, order]);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
@@ -419,31 +429,60 @@ const UsernameForm = () => {
             setOrderBy(field);
             setOrder('asc');
         }
+        // Reset usernames when sorting changes
+        setUsernames([]);
+        setHasMore(true);
     }, [orderBy, order]);
 
-    const handleChangePage = useCallback((event, newPage) => {
-        setPage(newPage);
-    }, []);
-
-    const handleChangeRowsPerPage = useCallback((event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    }, []);
+    const handleLoadMore = useCallback(() => {
+        if (!infiniteLoading && hasMore) {
+            const fetchUsernames = async () => {
+                setInfiniteLoading(true);
+                try {
+                    const params = {
+                        page: Math.floor(usernames.length / 25) + 1,
+                        limit: 25,
+                        status: filterStatus || undefined,
+                        search: debouncedSearchValue || undefined,
+                        orderBy,
+                        order,
+                    };
+                    
+                    const response = await axios.get('/api/usernames', { params });
+                    
+                    if (response.data && response.data.items) {
+                        setUsernames(prev => [...prev, ...response.data.items]);
+                        setHasMore(response.data.items.length === 25);
+                    } else {
+                        setHasMore(false);
+                    }
+                } catch (err) {
+                    setError('Failed to fetch more usernames');
+                } finally {
+                    setInfiniteLoading(false);
+                }
+            };
+            fetchUsernames();
+        }
+    }, [infiniteLoading, hasMore, usernames.length, filterStatus, debouncedSearchValue, orderBy, order]);
 
     const handleSearchChange = useCallback((e) => {
         setSearchValue(e.target.value);
-        setPage(0); // Reset to first page when searching
+        setUsernames([]); // Reset usernames when searching
+        setHasMore(true);
     }, []);
 
     const handleStatusChange = useCallback((e) => {
         setFilterStatus(e.target.value);
-        setPage(0); // Reset to first page when filtering
+        setUsernames([]); // Reset usernames when filtering
+        setHasMore(true);
     }, []);
 
     const handleReset = useCallback(() => {
         setSearchValue('');
         setFilterStatus('');
-        setPage(0);
+        setUsernames([]);
+        setHasMore(true);
     }, []);
 
     const handleSearchFocus = useCallback(() => {
@@ -498,18 +537,17 @@ const UsernameForm = () => {
 
     const tableProps = React.useMemo(() => ({
         usernames,
-        loading,
-        orderBy,
-        order,
-        page,
-        rowsPerPage,
+        loading: loading || infiniteLoading,
+        error,
         total,
+        hasMore,
+        onLoadMore: handleLoadMore,
         onSort: handleSort,
         onEdit: handleEdit,
         onDelete: handleDelete,
-        onChangePage: handleChangePage,
-        onChangeRowsPerPage: handleChangeRowsPerPage
-    }), [usernames, loading, orderBy, order, page, rowsPerPage, total, handleSort, handleEdit, handleDelete, handleChangePage, handleChangeRowsPerPage]);
+        orderBy,
+        order
+    }), [usernames, loading, infiniteLoading, error, total, hasMore, handleLoadMore, handleSort, handleEdit, handleDelete, orderBy, order]);
 
     return (
         <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4, p: 2 }}>
@@ -550,17 +588,16 @@ const UsernameForm = () => {
             />
 
             {/* Table */}
-            <UsernameTable 
+            <InfiniteScrollUsernameTable 
                 usernames={usernames}
-                loading={loading}
+                loading={loading || infiniteLoading}
+                error={error}
                 total={total}
-                page={page}
-                rowsPerPage={rowsPerPage}
+                hasMore={hasMore}
+                onLoadMore={handleLoadMore}
+                onSort={handleSort}
                 orderBy={orderBy}
                 order={order}
-                onSort={handleSort}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
             />

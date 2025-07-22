@@ -23,6 +23,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import WarningIcon from '@mui/icons-material/Warning';
 import CountryFlag from './CountryFlag';
 import { getCountryName } from '../utils/country_codes';
+import Tooltip from '@mui/material/Tooltip';
 import './styles.css';
 
 const InfiniteScrollCards = ({ 
@@ -132,7 +133,9 @@ const InfiniteScrollCards = ({
                 <Grid container spacing={1} sx={{ mb: 1 }}>
                     <Grid item xs={6} sm={3}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <CountryFlag countryCode={log.country} size={20} />
+                            <Tooltip title="Country">
+                                <CountryFlag countryCode={log.country} size={20} />
+                            </Tooltip>
                             <Typography variant="body2">
                                 {log.country ? `${log.country} - ${getCountryName(log.country)}` : 'N/A'}
                             </Typography>
@@ -140,7 +143,9 @@ const InfiniteScrollCards = ({
                     </Grid>
                     <Grid item xs={6} sm={3}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <BusinessIcon fontSize="small" color="action" />
+                            <Tooltip title="Autonomous System Number">
+                                <BusinessIcon fontSize="small" color="action" />
+                            </Tooltip>
                             <Typography variant="body2">
                                 {log.asn || 'N/A'}
                             </Typography>
@@ -148,7 +153,9 @@ const InfiniteScrollCards = ({
                     </Grid>
                     <Grid item xs={6} sm={3}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <SpeedIcon fontSize="small" color="action" />
+                            <Tooltip title="Response Time">
+                                <SpeedIcon fontSize="small" color="action" />
+                            </Tooltip>
                             <Typography variant="body2">
                                 {log.response_time_ms}ms
                             </Typography>
@@ -156,7 +163,9 @@ const InfiniteScrollCards = ({
                     </Grid>
                     <Grid item xs={6} sm={3}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <CachedIcon fontSize="small" color="action" />
+                            <Tooltip title="Cache Hit">
+                                <CachedIcon fontSize="small" color="action" />
+                            </Tooltip>
                             <Typography variant="body2">
                                 {log.cache_hit ? 'Yes' : 'No'}
                             </Typography>
@@ -171,7 +180,9 @@ const InfiniteScrollCards = ({
                             {log.email && (
                                 <Grid item xs={12} sm={6}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <EmailIcon fontSize="small" color="action" />
+                                        <Tooltip title="Email Address">
+                                            <EmailIcon fontSize="small" color="action" />
+                                        </Tooltip>
                                         <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
                                             {log.email}
                                         </Typography>
@@ -181,7 +192,9 @@ const InfiniteScrollCards = ({
                             {log.username && (
                                 <Grid item xs={12} sm={6}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <PersonIcon fontSize="small" color="action" />
+                                        <Tooltip title="Username">
+                                            <PersonIcon fontSize="small" color="action" />
+                                        </Tooltip>
                                         <Typography variant="body2">
                                             {log.username}
                                         </Typography>
@@ -191,7 +204,9 @@ const InfiniteScrollCards = ({
                             {log.user_agent && (
                                 <Grid item xs={12}>
                                     <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                                        <ComputerIcon fontSize="small" color="action" sx={{ mt: 0.5 }} />
+                                        <Tooltip title="User Agent">
+                                            <ComputerIcon fontSize="small" color="action" sx={{ mt: 0.5 }} />
+                                        </Tooltip>
                                         <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
                                             {log.user_agent}
                                         </Typography>
